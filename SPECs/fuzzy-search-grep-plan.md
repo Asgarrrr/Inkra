@@ -11,7 +11,7 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 | Slice | Sujet | Statut |
 |---|---|---|
 | 0 | Dépendances | ✅ fait |
-| 1 | Cœur de scan et ranking (Rust) | ⬜ à faire |
+| 1 | Cœur de scan et ranking (Rust) | ✅ fait (3 revues + remédiation) |
 | 2 | Commande streamée, annulation, transport | ⬜ à faire |
 | 3 | Palette | ⬜ à faire |
 | 4 | Porteur de cible + correctifs navigation | ⬜ à faire |
@@ -20,13 +20,28 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 
 ## Conventions de travail
 
-- Une slice = un commit. Un sous-agent par slice.
+- Une slice = un commit. Un sous-agent implémenteur par slice.
 - **Commentaires minimes.** Un commentaire explique un *pourquoi* non évident
   (invariant, piège, contrainte externe). Jamais de narration du diff, jamais de
   redite de la signature. Le code existant est plus bavard que cette règle —
   ne pas s'en inspirer.
 - Pas de refactor opportuniste, pas d'abstraction spéculative.
 - Vérification obligatoire avant de clore une slice (commandes + sortie collées).
+- **Fin de slice : trois sous-agents en contexte frais, en parallèle**, avant le
+  commit — jamais dans l'agent qui a écrit le code
+  (cf. [`docs/workflows/agent-review.md`](../docs/workflows/agent-review.md),
+  section « Context Isolation ») :
+  1. **Blue team** — conformité au plan et légitimité des tests. Re-dérive
+     indépendamment les parties risquées, vérifie qu'aucune assertion n'est
+     vide ou tautologique. Persona *QA Engineer*.
+  2. **Red team** — adversarial. Cherche l'entrée qui casse : panic, résultat
+     faux, blowup quadratique, race, invariant violé.
+  3. **Code review** — persona du domaine touché (*Rust/Tauri Expert*,
+     *React/Frontend*, *Editor*…) contre le brief et la checklist qualité.
+
+  Format de restitution : celui de `agent-review.md` (findings P0..P3,
+  fichier:ligne, impact, cause racine, direction de correctif). Un P0 ou un P1
+  non résolu bloque le commit.
 
 ## Contexte
 
@@ -210,6 +225,82 @@ annulation en cours, fichier binaire ignoré, fichier trop gros ignoré.
 
 **Vérification** : `cargo test`, `cargo clippy`, `cargo fmt --check` depuis
 `src-tauri/`.
+
+### Résultat — livrée après trois revues et une passe de remédiation
+
+Les trois revues (code review Rust/Tauri, blue team QA, red team) ont **toutes
+bloqué** le premier jet. Chacune a trouvé un défaut que les deux autres avaient
+manqué. Ce qu'elles ont validé, elles, solidement : parité `FRONTMATTER_RE`
+(16 cas re-dérivés à la main), offsets points-de-code, `[RT-3]`, `[D-2]`,
+annulation, `min_line_span` et `merge_ranges` (fuzzés 3000 cas chacun contre une
+force brute), comptabilité des caps (96 combinaisons), zéro panic sur ~25
+entrées hostiles.
+
+Défauts corrigés :
+
+- **Conversion points-de-code quadratique.** `line[..m.start()].chars().count()`
+  repartait de l'octet 0 à chaque match. Mesuré : 8,9 s (release) pour *un*
+  fichier sur une ligne de 2 Mio, non interruptible (`cancel()` n'est testé
+  qu'entre fichiers). Ce n'est pas une entrée synthétique : une image base64
+  inline, un bloc de JSON minifié ou une ligne de CSV collée sont des lignes
+  longues ordinaires dans un vault Obsidian. Corrigé par un curseur
+  `(byte, char)` monotone — `find_iter` rend les matches en ordre croissant.
+- **`line_content` non borné.** Les caps bornaient le *nombre* de matches,
+  jamais leur *taille* : plafond théorique 500 × 2 Mio ≈ 1 Go à travers
+  `Channel` → `webview.eval`. Cause racine distincte de la précédente. Corrigé
+  par une fenêtre de `MAX_SNIPPET_CHARS` (400) autour du premier match, plages
+  rebasées, plus un drapeau `line_truncated`. Plages plafonnées à
+  `MAX_RANGES_PER_LINE` (50) — une ligne pathologique en produisait 209 714.
+- **Un `\r` isolé désynchronisait `line_number` de l'éditeur.** `str::lines()`
+  ne coupe que sur `\n` ; CodeMirror coupe sur `DefaultSplit = /\r\n?|\n/` et le
+  repo ne configure aucun `lineSeparator` (les deux vérifiés). Le numéro restait
+  *dans les bornes* mais faux, donc le clamp `doc.lines` de la slice 5 ne
+  l'attrapait pas. Même famille que `[RT-1]`. Corrigé par `split_lines`, qui
+  mirrore `DefaultSplit`.
+- **La pile de scores inversait l'ordre du plan.** `HEADING_BONUS` valait 50
+  crans de proximité et le terme hits en traversait 5 : les règles 3 et 4
+  écrasaient la règle 2. Rebandé pour que la plage totale de chaque tier reste
+  strictement sous le pas du tier supérieur, avec un commentaire qui épingle
+  l'invariant.
+- **Le harnais de test certifiait ce qu'il ne testait pas.** Sur 20 mutations,
+  5 passaient inaperçues : `PROXIMITY_STEP = 0` (le test de proximité était
+  satisfait par l'ordre de déclaration de la fixture et la stabilité du tri),
+  suppression du tri intra-fichier, suppression du bonus stem, suppression du
+  terme hits, et un test d'exclusion vrai sur ensemble vide. Les cinq sont
+  maintenant fermées, chacune vérifiée rouge/vert.
+- Divers : `truncated` faux-positif au cap exact ; normalisation de stem
+  unidirectionnelle (un token avec tiret ne matchait jamais) ; mode littéral
+  multi-token qui dégradait AND en OR ; NBSP accepté comme délimiteur de
+  heading ; `find_iter` dont le `Result` était jeté.
+
+Ajouts au contrat par rapport au plan initial, à répercuter en slice 2 :
+
+- `ContentSearchStats.outcome: ContentSearchOutcome`
+  (`Completed | Cancelled | Aborted | Failed`). Un scan annulé rendait des stats
+  de forme identique à un scan complet, alors que la slice 2 en dérive l'état
+  terminal. **La slice 2 ne doit pas déduire la terminaison de `total`.**
+- `ContentMatch.line_truncated: bool` — le stub TS `ContentSearchResult` doit
+  donc gagner `score`, `relative_path` **et** `line_truncated`.
+- `ContentSearchOpts.batch_size`.
+
+**Risques résiduels assumés :**
+
+- Le correctif quadratique n'a **pas** de test rouge/vert : il préserve le
+  comportement, son seul observable est le temps. La fixture de ligne longue
+  (210 Ko) sert de canari — une régression rend la suite visiblement lente sans
+  la faire échouer. Une assertion temporelle serait flaky ; instrumenter un
+  compteur serait disproportionné.
+- 30 warnings `dead_code` portés jusqu'à la slice 2 (`mod commands` est privé,
+  rien n'appelle l'API tant que la commande n'est pas enregistrée). Décision
+  explicite : pas de `#[allow]`, ils disparaissent à l'enregistrement.
+- `İ`/`ß` ne matchent pas sous simple case folding — limitation de rappel,
+  cohérente avec ripgrep.
+- Le bonus heading se déclenche sur un `#` dans un bloc de code clôturé. Accepté
+  par le plan ; la red team a confirmé que c'est le seul faux positif de sa
+  classe.
+- La proximité sature à 1000 lignes d'écart.
+- `read_searchable` fait `metadata()` puis `read()` : un fichier qui grossit
+  entre les deux est lu au-delà de `max_bytes`. Non démontré, noté.
 
 ## Slice 2 — Commande streamée, annulation, transport frontend
 
