@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  Channel: class {
+    onmessage: ((message: unknown) => void) | null = null;
+  },
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -182,5 +185,29 @@ describe("workspace IPC wrappers", () => {
     mockedInvoke.mockResolvedValue({ workspace: "/ws", file: null });
     await ipc.takePendingOpen();
     expect(mockedInvoke).toHaveBeenCalledWith("take_pending_open");
+  });
+});
+
+describe("search IPC wrappers", () => {
+  test("searchWorkspaceContent passes the raw query and the channel", async () => {
+    const { Channel } = await import("@tauri-apps/api/core");
+    const channel = new Channel<ipc.ContentSearchEvent>();
+    mockedInvoke.mockResolvedValue(undefined);
+
+    // The `/` literal-mode prefix is parsed in Rust, so it must survive intact.
+    await ipc.searchWorkspaceContent("/needle", channel);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("search_workspace_content", {
+      query: "/needle",
+      onEvent: channel,
+    });
+  });
+
+  test("cancelWorkspaceContentSearch takes no argument", async () => {
+    mockedInvoke.mockResolvedValue(undefined);
+
+    await ipc.cancelWorkspaceContentSearch();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("cancel_workspace_content_search");
   });
 });

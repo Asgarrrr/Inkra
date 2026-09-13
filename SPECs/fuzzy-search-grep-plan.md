@@ -8,20 +8,20 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 
 ## Statut
 
-| Slice | Sujet | Statut |
-|---|---|---|
-| 0 | Dépendances | ✅ fait |
-| 1 | Cœur de scan et ranking (Rust) | ✅ fait (3 revues + remédiation) |
-| 2 | Commande streamée, annulation, transport | ⬜ à faire |
-| 3 | Palette | ⬜ à faire |
-| 4 | Porteur de cible + correctifs navigation | ⬜ à faire |
-| 5 | Saut à la ligne | ⬜ à faire |
-| 6 | Flash bref | ⬜ à faire |
+| Slice | Sujet                                    | Statut                           |
+| ----- | ---------------------------------------- | -------------------------------- |
+| 0     | Dépendances                              | ✅ fait                          |
+| 1     | Cœur de scan et ranking (Rust)           | ✅ fait (3 revues + remédiation) |
+| 2     | Commande streamée, annulation, transport | ✅ fait (3 revues + remédiation) |
+| 3     | Palette                                  | ⬜ à faire                       |
+| 4     | Porteur de cible + correctifs navigation | ⬜ à faire                       |
+| 5     | Saut à la ligne                          | ⬜ à faire                       |
+| 6     | Flash bref                               | ⬜ à faire                       |
 
 ## Conventions de travail
 
 - Une slice = un commit. Un sous-agent implémenteur par slice.
-- **Commentaires minimes.** Un commentaire explique un *pourquoi* non évident
+- **Commentaires minimes.** Un commentaire explique un _pourquoi_ non évident
   (invariant, piège, contrainte externe). Jamais de narration du diff, jamais de
   redite de la signature. Le code existant est plus bavard que cette règle —
   ne pas s'en inspirer.
@@ -33,11 +33,11 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
   section « Context Isolation ») :
   1. **Blue team** — conformité au plan et légitimité des tests. Re-dérive
      indépendamment les parties risquées, vérifie qu'aucune assertion n'est
-     vide ou tautologique. Persona *QA Engineer*.
+     vide ou tautologique. Persona _QA Engineer_.
   2. **Red team** — adversarial. Cherche l'entrée qui casse : panic, résultat
      faux, blowup quadratique, race, invariant violé.
-  3. **Code review** — persona du domaine touché (*Rust/Tauri Expert*,
-     *React/Frontend*, *Editor*…) contre le brief et la checklist qualité.
+  3. **Code review** — persona du domaine touché (_Rust/Tauri Expert_,
+     _React/Frontend_, _Editor_…) contre le brief et la checklist qualité.
 
   Format de restitution : celui de `agent-review.md` (findings P0..P3,
   fichier:ligne, impact, cause racine, direction de correctif). Un P0 ou un P1
@@ -63,18 +63,18 @@ comme **[RT-n]**.
 
 ## Décisions figées
 
-| Point | Choix | Pourquoi |
-|---|---|---|
-| Sémantique fuzzy | **Niveau fichier** : tous les tokens présents quelque part dans le fichier | Conforme à la spec (`:46`, « rank **files** whose content contains the tokens »). La variante par ligne renvoyait zéro sur `channels throughput` quand le premier token est un heading et le second le paragraphe en dessous — et sur toute prose wrappée à 80 colonnes. **[RT-3]** |
-| Snippet | La ligne du fichier contenant le plus de tokens ; départage par la première | Règle unique et explicable, lève l'ambiguïté du snippet en mode fichier. |
-| Proximité | Scorée sur une fenêtre de lignes, pas sur le fichier entier | Deux tokens à 3 lignes d'écart valent mieux qu'à 300. |
-| Mode grep | Préfixe `/` → littéral, pas de ranking | Conforme à la spec. |
-| Casse | **Smart case** dans les deux modes | Exigé par la spec (`:20`) : seul le *toggle UI* est hors scope, pas le comportement. |
-| Espace de lignes | Le Rust émet des numéros **relatifs au corps**, frontmatter exclu | L'éditeur ne contient jamais le frontmatter. Voir [RT-1]. |
-| Unité des offsets | **Points de code**, jamais des octets | Voir [RT-2]. |
-| Transport | `tauri::ipc::Channel` (lots) | Les docs Tauri v2 disent que le système d'events n'est pas fait pour le haut débit. |
-| Annulation | Génération coopérative + un seul scan en vol par fenêtre | Tauri n'a pas d'annulation first-class ([#8351](https://github.com/tauri-apps/tauri/issues/8351) ouvert). |
-| Matcher | `grep-regex` (un matcher **par token**), pas d'alternation | Voir [D-1]. |
+| Point             | Choix                                                                       | Pourquoi                                                                                                                                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sémantique fuzzy  | **Niveau fichier** : tous les tokens présents quelque part dans le fichier  | Conforme à la spec (`:46`, « rank **files** whose content contains the tokens »). La variante par ligne renvoyait zéro sur `channels throughput` quand le premier token est un heading et le second le paragraphe en dessous — et sur toute prose wrappée à 80 colonnes. **[RT-3]** |
+| Snippet           | La ligne du fichier contenant le plus de tokens ; départage par la première | Règle unique et explicable, lève l'ambiguïté du snippet en mode fichier.                                                                                                                                                                                                            |
+| Proximité         | Scorée sur une fenêtre de lignes, pas sur le fichier entier                 | Deux tokens à 3 lignes d'écart valent mieux qu'à 300.                                                                                                                                                                                                                               |
+| Mode grep         | Préfixe `/` → littéral, pas de ranking                                      | Conforme à la spec.                                                                                                                                                                                                                                                                 |
+| Casse             | **Smart case** dans les deux modes                                          | Exigé par la spec (`:20`) : seul le _toggle UI_ est hors scope, pas le comportement.                                                                                                                                                                                                |
+| Espace de lignes  | Le Rust émet des numéros **relatifs au corps**, frontmatter exclu           | L'éditeur ne contient jamais le frontmatter. Voir [RT-1].                                                                                                                                                                                                                           |
+| Unité des offsets | **Points de code**, jamais des octets                                       | Voir [RT-2].                                                                                                                                                                                                                                                                        |
+| Transport         | `tauri::ipc::Channel` (lots)                                                | Les docs Tauri v2 disent que le système d'events n'est pas fait pour le haut débit.                                                                                                                                                                                                 |
+| Annulation        | Génération coopérative + un seul scan en vol par fenêtre                    | Tauri n'a pas d'annulation first-class ([#8351](https://github.com/tauri-apps/tauri/issues/8351) ouvert).                                                                                                                                                                           |
+| Matcher           | `grep-regex` (un matcher **par token**), pas d'alternation                  | Voir [D-1].                                                                                                                                                                                                                                                                         |
 
 ## Les trois défauts corrigés
 
@@ -111,12 +111,13 @@ Un accent suffit à décaler d'un.
 **[D-1] `grep-searcher` écarté ; `grep-regex` + `grep-matcher` seulement.**
 Le plan initial prévoyait les trois sous-crates. `grep-searcher` n'apporte rien
 ici :
+
 - son streaming est moot — le corps doit être en mémoire de toute façon pour le
   découpage frontmatter ;
 - sa détection de binaire est couverte gratuitement par la validation UTF-8 ;
 - son `heap_limit` est un **piège** que le plan initial documentait lui-même :
-  une seule ligne plus longue que la limite fait échouer la recherche sur *tout
-  le fichier* (`BufferAllocation::Error`), donc une note contenant un bloc de
+  une seule ligne plus longue que la limite fait échouer la recherche sur _tout
+  le fichier_ (`BufferAllocation::Error`), donc une note contenant un bloc de
   JSON minifié disparaîtrait silencieusement, y compris pour ses lignes de prose
   normales. En lisant le fichier nous-mêmes sous un plafond de taille, ce mode
   de défaillance n'existe pas ;
@@ -194,6 +195,7 @@ lecture, dans `content_search_impl`.
 côté frontend au fil des lots (voir slice 3). Pas de barrière globale en Rust.
 
 **Ranking niveau fichier**, score décroissant :
+
 1. Tous les tokens présents dans le fichier (AND) — sinon éliminé.
 2. Proximité : plus petite fenêtre de lignes couvrant tous les tokens.
 3. Token trouvé sur une ligne de heading → bonus.
@@ -239,14 +241,14 @@ entrées hostiles.
 Défauts corrigés :
 
 - **Conversion points-de-code quadratique.** `line[..m.start()].chars().count()`
-  repartait de l'octet 0 à chaque match. Mesuré : 8,9 s (release) pour *un*
+  repartait de l'octet 0 à chaque match. Mesuré : 8,9 s (release) pour _un_
   fichier sur une ligne de 2 Mio, non interruptible (`cancel()` n'est testé
   qu'entre fichiers). Ce n'est pas une entrée synthétique : une image base64
   inline, un bloc de JSON minifié ou une ligne de CSV collée sont des lignes
   longues ordinaires dans un vault Obsidian. Corrigé par un curseur
   `(byte, char)` monotone — `find_iter` rend les matches en ordre croissant.
-- **`line_content` non borné.** Les caps bornaient le *nombre* de matches,
-  jamais leur *taille* : plafond théorique 500 × 2 Mio ≈ 1 Go à travers
+- **`line_content` non borné.** Les caps bornaient le _nombre_ de matches,
+  jamais leur _taille_ : plafond théorique 500 × 2 Mio ≈ 1 Go à travers
   `Channel` → `webview.eval`. Cause racine distincte de la précédente. Corrigé
   par une fenêtre de `MAX_SNIPPET_CHARS` (400) autour du premier match, plages
   rebasées, plus un drapeau `line_truncated`. Plages plafonnées à
@@ -254,7 +256,7 @@ Défauts corrigés :
 - **Un `\r` isolé désynchronisait `line_number` de l'éditeur.** `str::lines()`
   ne coupe que sur `\n` ; CodeMirror coupe sur `DefaultSplit = /\r\n?|\n/` et le
   repo ne configure aucun `lineSeparator` (les deux vérifiés). Le numéro restait
-  *dans les bornes* mais faux, donc le clamp `doc.lines` de la slice 5 ne
+  _dans les bornes_ mais faux, donc le clamp `doc.lines` de la slice 5 ne
   l'attrapait pas. Même famille que `[RT-1]`. Corrigé par `split_lines`, qui
   mirrore `DefaultSplit`.
 - **La pile de scores inversait l'ordre du plan.** `HEADING_BONUS` valait 50
@@ -341,7 +343,7 @@ qui protège les fenêtres compactes, qui n'ont pas d'index.
 recherche, comparé dans la boucle. Tear-down via `reset_workspace_runtime`
 (`state.rs:111-132`).
 
-**Un seul scan en vol par fenêtre.** L'annulation est coopérative *entre*
+**Un seul scan en vol par fenêtre.** L'annulation est coopérative _entre_
 fichiers : un `fs::read` bloqué sur un placeholder iCloud ne peut pas
 l'observer. Sans garde, une requête de 30 caractères tapée avec des pauses >
 debounce lance ~8 `spawn_blocking` tous coincés sur les mêmes lectures.
@@ -365,7 +367,127 @@ de `use-fuzzy-search.ts:20` (`.then(setResults)` sans garde de séquence).
 `vi.mock("@tauri-apps/api/core")`), et le hook en isolation — accumulation des
 lots, rejet d'un channel périmé, transition vers l'état terminal.
 
-## Slice 3 — La palette *(point de livraison naturel)*
+### Résultat — livrée après trois revues et une passe de remédiation
+
+Les trois revues (code review Rust/Tauri + React, blue team QA, red team) ont
+**toutes bloqué** le premier jet, et sur le même diagnostic : 13 mutations sur
+36 survivaient, toutes dans deux régions — le corps du `#[tauri::command]` et le
+hook React. Les deux étaient intestables pour la même raison : la logique était
+inlinée là où aucun test ne peut construire les dépendances. Le correctif est
+structurel, pas « plus d'assertions ».
+
+La pire tenait en un caractère : `fetch_add(1) + 1` → `fetch_add(1)` faisait
+capturer à chaque scan sa génération _avant_ incrément, donc se lire lui-même
+comme périmé et sortir avant toute I/O. La recherche de contenu ne rendait plus
+jamais rien, suite verte.
+
+Défauts corrigés :
+
+- **Corps de commande extrait** en `run_content_scan(state, generation, query,
+opts, emit)` et `next_content_search_generation(state)`.
+  `WorkspaceState::default()` se construit en test et `file_index` se remplit
+  directement, donc un `emit` enregistreur couvre tout le protocole.
+- **Chemin de sortie sans événement terminal.** Le retour « périmé avant le
+  lock » ne renvoyait pas de `Done`. Périmé par une _recherche plus récente_
+  est inoffensif, mais périmé par `reset_workspace_runtime` ne l'est pas : aucun
+  scan plus récent n'existe, le frontend croit encore au channel, `isSearching`
+  reste `true` pour toujours. Désormais un `Done(Cancelled)` part sur **tous**
+  les chemins, et un test pilote `run_content_scan` à travers les six
+  (requête illisible, périmé avant lock, annulé en cours, `emit` qui rompt,
+  plafond atteint, complétion) en asservissant l'invariant « exactement un
+  terminal, en dernier ».
+- **Génération incrémentée avant les gardes.** Taper `/` seul, ou effacer
+  jusqu'au blanc, laissait tourner le scan précédent sur tout le workspace —
+  et tenir `content_search_lock`, donc la requête suivante faisait la queue
+  derrière un scan abandonné.
+- **Clone de l'index déplacé dans le `spawn_blocking`, après le test de
+  péremption.** 186 o/entrée, soit ~3 Mo par invoke à 20 000 fichiers, payés y
+  compris par les requêtes qui sortent immédiatement — et payés sur le thread
+  de l'exécuteur async, le seul endroit où cette commande ne doit pas bloquer.
+- **Attente bornée au lieu d'un `lock()` bloquant** (voir écarts ci-dessous).
+- **Orthographes des quatre `outcome` épinglées** et **contrat de transport
+  vérifié des deux côtés** : `shared/content-search-event.contract.json`, lu par
+  Rust en `include_str!` et importé par TS, sur le modèle de
+  `workspace-identity.contract.json`. L'ancien test n'épinglait que le JSON
+  Rust ; renommer `line_truncated` côté TS restait vert pendant que la palette
+  affichait `undefined`.
+- **Contrat de streaming épinglé.** Le harnais aplatissait tous les lots en un
+  `Vec`, donc `batch_size = usize::MAX` passait inaperçu.
+- **Hook testé pour de vrai.** Un mini-runtime de hooks (`tests/helpers/
+fake-react.ts`, ~100 lignes) exécute la vraie source sous `environment:
+"node"` : debounce, délai d'indicateur, les _deux_ gardes d'identité de
+  channel, l'`outcome` « failed » synthétisé, le `channelRef = null` du
+  nettoyage, et le double-effet façon StrictMode.
+- **Session clefée sur sa requête.** `setSession(emptySession())` n'était appelé
+  que _dans_ le callback de debounce : pendant ≥150 ms après chaque frappe, le
+  hook rendait la session de la requête précédente, `isComplete: true` et stats
+  réelles — une palette lisant `isComplete && results.length === 0` affichait un
+  « No results found » définitif pour une requête dont le scan n'avait pas
+  commencé. La session porte maintenant sa `query` et le hook expose `isStale`.
+- **Annulation explicite.** Rien ne disait à Rust d'arrêter quand la palette se
+  ferme ou que l'entrée se vide. `ControlFlow::Break` est mort en pratique : la
+  red team a confirmé la « réserve » du plan, `Channel::send` → `Webview::eval`
+  → `send_user_message` est fire-and-forget et ne rend `Err` qu'à l'extinction
+  de l'app. La génération est donc le **seul** mécanisme d'arrêt, d'où
+  `cancel_workspace_content_search`, appelé au nettoyage de l'effet.
+- **Scan annulé qui figeait un jeu de résultats inter-workspace.**
+  `reset_workspace_runtime` arrête le scan, mais les lots déjà émis portaient
+  des chemins absolus dans l'**ancien** workspace et le réducteur estampillait
+  `isComplete: true` sans qu'aucune nouvelle recherche ne parte. `cancelled`
+  vaut désormais « jette la session », pas « fige-la ».
+- Divers : `default` manquant dans le réducteur (une variante ajoutée côté Rust
+  rendait `setSession(undefined)` puis un `TypeError`) ; objet de retour
+  mémoïsé ; hook colocalisé en `components/content-search-palette/` selon le
+  test de `docs/react-guidelines.md` ; test tautologique supprimé.
+
+Écarts au plan :
+
+1. **La commande prend `query` seul, pas `query` + `mode`.** L'analyse du
+   préfixe `/` vit uniquement dans `parse_content_query`, ce qui supprime aussi
+   le piège « littéral multi-token » qui dégradait le AND en OR.
+2. **« Refuser de lancer » est devenu une attente bornée avec re-test de
+   péremption.** Refuser aurait jeté la requête la plus récente, celle que
+   l'utilisateur veut. Mais faire la queue sur `lock()` réintroduit la moitié
+   « occupation de thread » du problème que la règle fermait : chaque frappe
+   passée le debounce gare un thread de plus dans le pool bloquant de Tauri,
+   partagé avec toutes les commandes de `commands/fs.rs` (`max_blocking_threads`
+   vaut 512 par défaut chez tokio). D'où la boucle `try_lock` + `sleep(25 ms)` :
+   un attendant périmé rend son thread en ~25 ms au lieu de la durée complète
+   de son prédécesseur.
+3. **Déplacement d'environ 1100 lignes** du cœur de la slice 1 de
+   `commands/search.rs` vers `commands/content_search.rs`, vérifié neutre en
+   comportement.
+4. **Les trois ajouts au contrat légués par la slice 1** ont atterri ainsi :
+   `outcome` porte l'état terminal (le frontend ne le déduit jamais de `total`),
+   `line_truncated` remonte jusqu'à `ContentSearchResult` en TS, et `batch_size`
+   est maintenant sous test de streaming.
+5. **`parse_content_query` est appelé dans `run_content_scan`, pas dans la
+   commande**, contrairement à la découpe demandée : sinon le chemin « requête
+   illisible » reste dans la région intestable et son événement terminal n'est
+   couvert par rien.
+
+**Risques résiduels assumés :**
+
+- La garde `AppError::NoWorkspace` reste dans le `#[tauri::command]`, donc hors
+  de portée des tests : la supprimer laisse la suite verte. La fermer
+  demanderait de descendre la garde dans `run_content_scan` et d'émettre
+  `Done(Failed)` au lieu de rejeter l'invoke — un changement de contrat IPC, à
+  trancher avant la slice 3.
+- L'attente bornée coûte un réveil toutes les 25 ms par attendant. Négligeable
+  au regard du scan, mais ce n'est pas une primitive de synchronisation : deux
+  attendants ne sont pas servis dans l'ordre d'arrivée. Sans importance ici, le
+  plus ancien étant toujours le périmé.
+- `outcome: "aborted"` est inatteignable hors extinction de l'app (cf. la
+  réserve sur `Channel::send`). Le code du chemin existe et est testé, il ne
+  sera simplement jamais déclenché en production.
+- `tests/helpers/fake-react.ts` n'est pas React : il rend de façon synchrone et
+  ne groupe pas les mises à jour. Suffisant pour des décisions de séquencement,
+  inadapté à tout ce qui dépendrait du batching.
+- Le nettoyage de l'effet part à chaque frappe ; `cancel_workspace_content_search`
+  n'est envoyé que si le debounce avait déclenché, mais un aller-retour IPC de
+  plus par recherche abandonnée reste.
+
+## Slice 3 — La palette _(point de livraison naturel)_
 
 À la fin de cette slice la feature est utile et complète : on cherche, on voit,
 on ouvre. Le saut à la ligne vient après.
@@ -491,7 +613,7 @@ que la compensation habituelle de CodeMirror ne tourne **que si l'éditeur a le
 focus ou qu'un événement wheel/touch date de moins de 100ms** — or un clic dans
 la palette laisse le focus dans l'input cmdk et ne produit aucun wheel. La
 compensation est donc désactivée exactement dans ce flux. → forcer le parse de la
-région cible *avant* de scroller, ou re-scroller après le commit de mesure.
+région cible _avant_ de scroller, ou re-scroller après le commit de mesure.
 
 **Vérification** : runtime obligatoire via le skill `verify`, sur un document de
 plusieurs milliers de lignes contenant images et tables, plus un fichier avec

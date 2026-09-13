@@ -19,6 +19,12 @@ Add full-content fuzzy search and grep across the workspace. Today Writer only h
 - Searching non-markdown files.
 - Case-sensitive toggle UI in v1 (defaults to smart case).
 
+## Freshness Contract (v1 Limitation)
+
+The scan reads the files on disk. The user reads the buffer in the editor. A phrase just typed is not findable until the file is saved, and an edit that deleted a phrase still matches until the save lands.
+
+This is accepted for v1 and is not a bug. Searching unsaved buffers would mean either a second, differently-shaped search path over the open documents or flushing every buffer before each keystroke's scan.
+
 ## Search Surface
 
 ### Entry points
@@ -36,9 +42,9 @@ Add full-content fuzzy search and grep across the workspace. Today Writer only h
 
 ## Backend Strategy
 
-- Use `ripgrep`'s library (`grep` crate) on the Rust side to walk the workspace and match lines.
+- Use ripgrep's `grep-regex` and `grep-matcher` sub-crates on the Rust side to match lines. Not the umbrella `grep` crate, and not `grep-searcher` — see `[D-1]` in the execution plan.
 - Honor `.gitignore` (reuse the workspace ignore matcher already wired up for the file index).
-- Match in parallel across files using `rayon` or similar, bounded to a reasonable thread count.
+- Iterate the in-memory workspace file index rather than walking the disk, so there is no walk to parallelize and no need for `rayon`. The scan runs on one blocking thread and streams its batches.
 - Return at most N results per file (default ~10) and M total (default ~500) to keep the palette responsive.
 
 ### Search modes
@@ -86,7 +92,7 @@ Do not design v1 around the inverted index.
 
 ## Files Expected To Change
 
-- `apps/desktop/src-tauri/Cargo.toml` (add `grep` / `grep-searcher` / `grep-matcher`)
+- `apps/desktop/src-tauri/Cargo.toml` (add `grep-regex` / `grep-matcher`)
 - `apps/desktop/src-tauri/src/commands/search.rs`
 - `apps/desktop/src-tauri/src/state.rs`
 - `apps/desktop/src/components/content-search-palette.tsx` (new)

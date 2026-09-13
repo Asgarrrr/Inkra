@@ -1,8 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import sidebarEntryKinds from "@shared/sidebar-entry-kinds.json";
 import type {
+  ContentSearchResult,
+  ContentSearchStats,
   DirEntry,
   FileContent,
   IndexStats,
@@ -209,6 +211,28 @@ export function indexWorkspace(): Promise<IndexStats> {
 
 export function fuzzySearch(query: string, limit?: number): Promise<SearchResult[]> {
   return invoke("fuzzy_search", { query, limit });
+}
+
+/** Streamed content scan. Matches arrive in batches; `done` is the terminal
+ *  signal and the only reliable source of the terminal state. */
+export type ContentSearchEvent =
+  | { event: "matches"; data: ContentSearchResult[] }
+  | { event: "done"; data: ContentSearchStats };
+
+/** The `/` prefix that switches to literal mode is parsed in Rust, so the raw
+ *  query text is the whole input. */
+export function searchWorkspaceContent(
+  query: string,
+  onEvent: Channel<ContentSearchEvent>,
+): Promise<void> {
+  return invoke("search_workspace_content", { query, onEvent });
+}
+
+/** Stop this window's in-flight scan. The generation bump is the only stop
+ *  signal that survives a destroyed webview, so an abandoned search has to say
+ *  so instead of running the workspace out. */
+export function cancelWorkspaceContentSearch(): Promise<void> {
+  return invoke("cancel_workspace_content_search");
 }
 
 // Font commands
