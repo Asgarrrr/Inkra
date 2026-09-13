@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-13
+
+- Fix the marketing site's demo-video strip scrolling over the feature list on phones and tablets. The hero column's desktop-only `position: sticky` was still active in the stacked mobile layout, so the hero stayed pinned while the video strip slid up underneath the features. Below 900px the hero now scrolls with the page and grows to at least one screen (`100svh`) instead of exactly one, so it can never overflow into the strip; the features still sit at the bottom of the first screen.
+
 ## 2026-09-10
 
 - Move writer.computer's analytics from a self-hosted Umami instance to PostHog, so the website and the app report to one place. The site records four things and nothing else: a page view, the Updates link, the GitHub link, and the macOS download (which carries the advertised version). Autocapture, session replay, surveys, heatmaps, and exception capture are all switched off, and visitors stay anonymous. The project key is supplied at build time, so a build made from a clone of this repo initializes nothing and sends nothing. One change to be aware of: PostHog stores a cookie where Umami did not. See [docs/website-analytics.md](./docs/website-analytics.md).
