@@ -35,6 +35,10 @@ export function useContentSearch(query: string): ContentSearchState {
 
   useEffect(() => {
     if (!hasQuery) {
+      // `isStale` hides the previous corpus while the query is empty, but the
+      // next query would start from it: `hasQuery` flips back true a debounce
+      // before `setSession(emptySession(query))` runs.
+      setSession(emptySession());
       return;
     }
 

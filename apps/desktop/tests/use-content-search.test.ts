@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react", () => import("./helpers/fake-react"));
 
 import { invoke } from "@tauri-apps/api/core";
-import { useContentSearch } from "../src/components/content-search-palette/use-content-search";
+import { useContentSearch } from "../src/components/command-palette/use-content-search";
 import {
   CONTENT_SEARCH_DEBOUNCE_MS,
   CONTENT_SEARCH_INDICATOR_DELAY_MS,
@@ -172,6 +172,24 @@ describe("useContentSearch", () => {
 
     channel({ event: "matches", data: [match("left-workspace.md")] });
     channel({ event: "done", data: stats({ total: 1, outcome: "cancelled" }) });
+
+    expect(hook.result.session.results).toHaveLength(0);
+    expect(hook.result.session.isComplete).toBe(false);
+    expect(hook.result.isStale).toBe(true);
+    hook.unmount();
+  });
+
+  test("a new query never starts from the previous one's results", () => {
+    const hook = renderHook(useContentSearch, "authentication");
+    vi.advanceTimersByTime(150);
+    const channel = channelOf(0);
+    channel({ event: "matches", data: [match("auth.md")] });
+    channel({ event: "done", data: stats({ total: 1 }) });
+    expect(hook.result.session.results).toHaveLength(1);
+
+    // Backspacing under the threshold hands the hook `""`.
+    hook.rerender("");
+    hook.rerender("zzz");
 
     expect(hook.result.session.results).toHaveLength(0);
     expect(hook.result.session.isComplete).toBe(false);

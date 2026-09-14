@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-14
+
+- Search inside your documents from the command palette. `Cmd+P` — or the new `Cmd+Shift+F`, which opens the same palette — now lists an **In documents** group under the usual commands and file names: the matching lines, highlighted, grouped by file, with their line numbers, ranked by relevance. Typing plain words looks for files containing all of them, close together; prefixing the query with `/` searches for that exact string instead. Content scanning starts at three characters, so jumping to a file by name stays as instant as before, and it reads the files on disk — a phrase you just typed is findable once the file is saved. Clicking a result opens the file; jumping to the matched line comes next.
+
 ## 2026-09-10
 
 - Move writer.computer's analytics from a self-hosted Umami instance to PostHog, so the website and the app report to one place. The site records four things and nothing else: a page view, the Updates link, the GitHub link, and the macOS download (which carries the advertised version). Autocapture, session replay, surveys, heatmaps, and exception capture are all switched off, and visitors stay anonymous. The project key is supplied at build time, so a build made from a clone of this repo initializes nothing and sends nothing. One change to be aware of: PostHog stores a cookie where Umami did not. See [docs/website-analytics.md](./docs/website-analytics.md).

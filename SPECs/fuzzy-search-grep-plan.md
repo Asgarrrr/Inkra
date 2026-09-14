@@ -13,7 +13,7 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 | 0     | Dépendances                              | ✅ fait                          |
 | 1     | Cœur de scan et ranking (Rust)           | ✅ fait (3 revues + remédiation) |
 | 2     | Commande streamée, annulation, transport | ✅ fait (3 revues + remédiation) |
-| 3     | Palette                                  | ⬜ à faire                       |
+| 3     | Palette                                  | ✅ fait (3 revues + remédiation) |
 | 4     | Porteur de cible + correctifs navigation | ⬜ à faire                       |
 | 5     | Saut à la ligne                          | ⬜ à faire                       |
 | 6     | Flash bref                               | ⬜ à faire                       |
@@ -492,18 +492,46 @@ fake-react.ts`, ~100 lignes) exécute la vraie source sous `environment:
 À la fin de cette slice la feature est utile et complète : on cherche, on voit,
 on ouvre. Le saut à la ligne vient après.
 
-**Composant séparé** `src/components/content-search-palette.tsx`, pas une
-troisième valeur de `commandPaletteIntent`. L'union (`ui-store.ts:3`) est
-consommée par **7** conditionnels dans `command-palette/index.tsx`
-(`:82,84,211,221,243,258,275`) et le layout diverge de toute façon (groupes par
-fichier, extraits multi-lignes). `docs/consolidation.md:38` nomme explicitement
-« multiple files containing the same set of if/switch cases » comme
-l'anti-pattern à éviter.
+### [D-3] Surface unique — décision produit, prise en cours de slice 3
 
-**Propriétaire unique de l'état d'ouverture.** Deux booléens indépendants dans
-`ui-store` recréeraient la dérive que `docs/consolidation.md` interdit. Un seul
-discriminant de palette, avec exclusion mutuelle explicite quand `Cmd+Shift+F`
-arrive alors que `Cmd+P` est déjà ouvert.
+Le plan prévoyait un composant séparé `content-search-palette.tsx` et deux
+palettes distinctes. **Annulé.** Décision de l'utilisateur : une seule zone de
+recherche dans le produit. Une palette, qui remonte les noms de fichiers _et_ le
+contenu.
+
+La justification du composant séparé (7 conditionnels sur
+`commandPaletteIntent`, layout divergent) portait sur l'hypothèse « deux
+palettes ». Elle tombe avec l'hypothèse. Ce qui reste vrai et gouverne
+maintenant : `docs/consolidation.md` interdit deux sources de vérité pour
+« qu'est-ce qui est ouvert », et `command-palette/index.tsx` fait déjà 330
+lignes.
+
+Forme retenue :
+
+- `command-palette/index.tsx` reste **la** palette : elle possède le dialog,
+  l'input, la sélection et l'état d'ouverture. Aucun second discriminant dans
+  `ui-store`, donc la question de l'exclusion mutuelle disparaît — il n'y a plus
+  deux choses à exclure.
+- Le rendu de chaque groupe part dans un composant enfant du même répertoire. Le
+  shell ne doit pas grossir de la taille du rendu des extraits (groupement par
+  fichier, lignes multiples, plages surlignées).
+- Groupes, dans cet ordre : `Commands`, `Files`, `In documents`. **Pas
+  d'interclassement noms/contenu** : scorer un chemin contre un extrait sur une
+  échelle commune est un problème ouvert ; le groupement l'évite et reste
+  explicable.
+- `Cmd+Shift+F` ouvre **la même** palette, comportement identique à `Cmd+P`. Un
+  mode « contenu seulement » caché derrière le second raccourci réintroduirait
+  deux comportements sous une surface unique. Le préfixe `/` reste le moyen
+  explicite de viser le contenu en littéral.
+- La barre « Search » de la sidebar (`file-browser.tsx`, réglage
+  `appearance.sidebar-show-search`) reste le point d'entrée cliquable unique et
+  garde son libellé `⌘P`. Rien n'est ajouté à l'écran.
+- **Seuil de 3 caractères avant de lancer le scan de contenu.** Le fuzzy sur les
+  noms reste instantané dès le premier caractère ; sans seuil, chaque `Cmd+P`
+  pour sauter à un fichier déclencherait un scan disque du workspace.
+
+La spec est amendée en conséquence : elle gelait `Cmd+P` en noms-seulement
+(`:28`) et demandait une icône de sidebar dédiée (`:27`). Les deux sont caducs.
 
 **Points à respecter** : `cmdk` avec `shouldFilter={false}` (`index.tsx:252`) ;
 **clés composites** `${path}:${line}` — l'existant fait `key={r.path}` (`:299`),
@@ -545,6 +573,203 @@ plages sur des chaînes accentuées et avec emoji.
 
 **Vérification** : `vp check`, `vp test`, puis lancement réel via le skill
 `verify`.
+
+### Résultat — livrée après trois revues et une passe de remédiation
+
+Les trois revues (blue team QA, red team, code review React/UX) ont **toutes
+bloqué** le premier jet, sur trois P1 concentrés dans les états terminaux de
+`contentSection` et le câblage de `index.tsx` — exactement la région que le
+runner ne peut pas atteindre (`environment: "node"`, pas de `.tsx`).
+
+Ce qui a atterri :
+
+- `command-palette/use-content-search.ts` — le hook de la slice 2 déplacé depuis
+  `components/content-search-palette/`, répertoire supprimé. Un seul changement
+  de comportement : la session est **vidée quand la requête repasse vide**.
+- `command-palette/group-content-results.ts` — module pur : seuil de 3
+  caractères (`contentSearchQuery`, source unique de la règle), groupement par
+  chemin, tri score décroissant puis `relative_path` croissant, valeur cmdk
+  composite `${path}:${line_number}`, `contentParentDir`, et `contentSection`
+  qui dérive l'état affiché (`idle` / `pending` / `empty` / `unavailable` /
+  `active`).
+- `command-palette/highlight-ranges.ts` — découpage des plages en points de
+  code, trois segments au plus par match, une seule passe.
+- `command-palette/content-results.tsx` — rendu du groupe `In documents`
+  uniquement. Le shell garde le dialog, l'input, la sélection et l'intention.
+- `command-palette/index.tsx` — trois groupes (`Commands`, `Files`,
+  `In documents`), `firstValue` étendu aux lignes de contenu, requête de contenu
+  gardée par `root`, signal d'indexation autonome, règle de stabilité de la
+  sélection.
+- `use-keyboard-shortcuts.ts` — clause `Cmd+Shift+F`, testant `"f" || "F"`,
+  gardée par `root`.
+
+Défauts corrigés :
+
+- **La palette devenait entièrement blanche pendant la recherche.**
+  `CommandEmpty` était gardé sur `idle` seul alors que le groupe de contenu ne
+  rend rien en `pending` : 350 ms minimum sans une seule ligne ni un seul
+  message, et un clignotement par frappe une fois qu'un scan a rendu zéro
+  résultat. Invariant posé : **la liste n'est jamais à la fois vide de lignes et
+  vide de messages**, et aucun message n'énonce un verdict qu'aucun scan n'a
+  atteint. Le délai de 200 ms ne gouverne plus que l'affordance « Searching… »
+  _à côté des résultats_, ce que la spec (`:74`) demandait.
+- **Les résultats d'une requête précédente s'affichaient comme courants.**
+  `isStale` n'était consulté que sur la branche `empty`. Le débounce redémarre à
+  chaque frappe, donc la fenêtre n'était pas bornée à 150 ms : en frappe rapide
+  le corpus périmé restait à l'écran toute la rafale, `firstValue` retombait sur
+  une de ses lignes et **`Enter` ouvrait un fichier répondant à une requête déjà
+  effacée**. `isStale` garde maintenant `active`. Deuxième moitié dans le hook :
+  la session n'était jamais vidée quand `hasQuery` retombait faux (le reset
+  `outcome: "cancelled"` est inatteignable, `channelRef.current` valant déjà
+  `null`), donc une nouvelle requête repartait du cadavre de l'ancienne.
+- **Un scan en échec était rendu comme le verdict « No matches in documents ».**
+  `contentSection` ne lisait jamais `stats.outcome`, le seul champ qui existe
+  pour distinguer les deux. Dans une fenêtre sans workspace, `root` est `null`
+  mais `isCompactFileMode` est faux, et `contentQuery` n'était pas gardé sur
+  `root` : chaque requête de 3 caractères tirait une IPC qui rejette toujours en
+  `NoWorkspace`, et la palette affirmait l'absence de matches dans des documents
+  jamais ouverts. Corrigé des deux côtés — garde `root` au point d'appel unique,
+  et un `kind: "unavailable"` propre pour `failed` / `aborted` / tout ce qui
+  n'est pas `completed`.
+- **`Cmd+Shift+F` n'était pas identique à `Cmd+P`** alors que `[D-3]` et deux
+  docs l'affirmaient : la clause n'avait aucune garde. Gardée sur `root`, ce qui
+  ferme aussi le déclencheur du défaut précédent. La même phrase de
+  `docs/keyboard-shortcuts.md` prétendait aussi que `Cmd+O` et `Cmd+N` marchent
+  en fenêtre compacte, ce qui est faux depuis toujours : corrigé.
+- **Le signal d'indexation disparaissait pendant l'indexation.** Le suffixe
+  `Files (indexing...)` était porté par un groupe vide précisément tant que
+  l'index se construit. Le signal est sorti de l'en-tête et devient une ligne à
+  part entière, atteignable que le groupe `Files` soit peuplé ou non.
+- **Un fichier à la racine du vault affichait `/` comme parent.**
+  `getParentDir` était appelé sur un chemin **relatif** ; tous les autres
+  appelants du repo lui passent un absolu. `contentParentDir` rend `""`.
+- Divers : assertion sur `truncated` avant l'arrivée des stats, clamp bas et
+  clamp de plage inversée testés, commentaires qui redisaient la ligne suivante
+  supprimés.
+
+Écarts au plan :
+
+1. **Le gel de l'ordre est supprimé, remplacé par la stabilité de la
+   sélection.** Le plan demandait de « figer l'ordre dès que l'utilisateur
+   navigue au clavier ». Trois constats l'ont invalidé. (a) Une flèche pressée
+   avant le premier lot stockait `paths: []`, qui est **truthy** : le tri par
+   score était désactivé pour toute la session, et la garde `if (frozenPaths)`
+   empêchait ensuite tout vrai gel de le remplacer. (b) Le gel ne couvrait pas
+   le flux qu'il visait — taper, attendre, `Enter` sans jamais toucher une
+   flèche : aucun gel, un lot tardif re-trie, l'effet de snap re-sélectionne la
+   nouvelle tête et `Enter` ouvre un autre fichier. Idem au survol souris, et
+   `firstValue` dépend aussi de `visibleFiles[0]`, qu'aucun gel de contenu ne
+   contrôle. (c) `frozenPathsFor` étant clefé sur le **texte** de la requête et
+   `CommandPalette` ne se démontant jamais, un gel ressuscitait en revenant sur
+   une requête déjà effacée. Le mal nommé par le plan est le **déplacement de la
+   sélection**, pas le re-tri : cmdk indexe sa sélection sur `value`, donc ne
+   plus resnapper suffit à la fermer complètement. `orderContentGroups` trie
+   toujours par score ; l'effet de sélection ne resnappe que si la requête ou
+   l'intention change, ou si la valeur sélectionnée a quitté la liste.
+2. **Le groupe unique `Results` / `Suggested` est scindé** en `Commands` et
+   `Files`, comme l'exige l'ordre de groupes décidé en `[D-3]`.
+3. **Descope acté dans la spec** pour l'icône de recherche en en-tête de
+   sidebar : la barre `Search ⌘P` existante reste le point d'entrée cliquable
+   unique.
+4. **Deux descopes supplémentaires actés dans la spec**, plutôt que laissés
+   tomber en silence : les **en-têtes de fichier collants** (`:55`) et le
+   **rappel fuzzy vs. grep sur requête vide** (`:95`). Motifs dans la spec.
+
+**Risques résiduels assumés :**
+
+- Rien du rendu n'est testé : `include: ["tests/**/*.test.ts"]` et
+  `environment: "node"` interdisent le `.tsx`. Toute la logique décidable est
+  sortie dans les modules purs, mais le câblage de `index.tsx` — garde `root`,
+  garde de `CommandEmpty`, et surtout **la règle de stabilité de la sélection**
+  — n'a pas de filet. Les quatre mutations correspondantes survivent, vérifié.
+  Extraire le prédicat de snap en fonction pure ne fermerait pas la brèche (le
+  test porterait sur `a !== b || !c`, tautologique) et ne dirait rien de
+  l'effet, qui est la partie fragile.
+- **Le re-tri visuel à l'arrivée des lots est assumé.** Les groupes bougent sous
+  les yeux de l'utilisateur ; sa sélection, elle, ne bouge plus. Si le
+  mouvement s'avère pénible à la vérification runtime, le corriger par une
+  fenêtre de stabilité d'affichage, **pas** en réintroduisant un gel.
+- `line_truncated` rend une seule ellipse, en fin de ligne. La fenêtre de
+  `snippet_window` coupe presque toujours la queue, mais quand le match est dans
+  les 400 derniers caractères c'est la tête qui est coupée : le frontend ne
+  reçoit pas l'information et l'ellipse est alors du mauvais côté.
+- **Les plages de surlignage ne s'alignent pas sur les graphèmes.** Sur du texte
+  NFD (`café` = `e` + U+0301), un match littéral de `cafe` rend `[0,4]` et
+  l'accent combinant part dans le `<span>` suivant, où il s'affiche seul ou sur
+  un cercle pointé. Le correctif tient en quinze lignes avec `Intl.Segmenter`,
+  mais il demande d'ajouter `ES2022.Intl` au `lib` du `tsconfig` **et** une
+  garde d'existence : `tauri.conf.json` déclare `minimumSystemVersion: 10.15`,
+  dont la WKWebView (Safari 13) n'a pas `Intl.Segmenter`, et un
+  `new Intl.Segmenter` au niveau module y ferait lever l'import de toute la
+  palette. Accepté en l'état, à reprendre si le plancher macOS monte.
+- Les lignes d'un groupe continuent de grossir : un lot peut ajouter des lignes
+  dans un groupe déjà affiché, donc décaler ce qui est **sous** lui.
+
+**Vérification** (depuis `apps/desktop/`, `apps/desktop/src-tauri/`) :
+
+```
+../../node_modules/.bin/vp check   → 0 errors, 1 warning (e2e/wdio.conf.js, préexistant)
+../../node_modules/.bin/vp test    → 49 fichiers, 620 tests passés (617 avant remédiation)
+cargo test                         → 205 passés, 0 échec (inchangé)
+```
+
+Auto-contrôle par mutation, huit mutations, **quatre attrapées** ; les quatre
+survivantes sont toutes dans `index.tsx`, hors de portée du runner :
+
+| Mutation                                       | Résultat       | Test qui tombe                                      |
+| ---------------------------------------------- | -------------- | --------------------------------------------------- |
+| `isStale` ne garde plus `active`               | attrapée       | `a previous query's results are never shown…` (+1)  |
+| `contentSection` ignore `outcome`              | attrapée       | `a scan that never read the documents…`             |
+| le hook ne vide plus la session                | attrapée       | `a new query never starts from the previous one's…` |
+| comparateur de tri inversé                     | attrapée       | `sorts by score descending` (+2)                    |
+| `CommandEmpty` revient à `idle` seul           | **survivante** | rendu non testable (`.tsx`)                         |
+| l'effet de sélection resnappe sur `firstValue` | **survivante** | rendu non testable (`.tsx`)                         |
+| `contentQuery` n'est plus gardé sur `root`     | **survivante** | rendu non testable (`.tsx`)                         |
+| `getParentDir` rendu sans garde à la racine    | **survivante** | `contentParentDir` reste testé, son usage non       |
+
+**Vérification runtime — faite.** Les quatre mutations survivantes vivent toutes
+dans la couche de rendu ; le runtime est leur seul filet, et le plan l'exigeait.
+Spec e2e `apps/desktop/e2e/specs/content-search.spec.js` (auto-amorçant : il
+sème son propre workspace dans `os.tmpdir()`), 6 scénarios, **6 passés** :
+
+```
+pnpm exec wdio run ./wdio.conf.js --spec ./specs/content-search.spec.js
+  ✓ never renders a blank list while a content scan is pending
+  ✓ groups matches by file with highlighted text and line numbers
+  ✓ never shows a root-level file with a bare / as its parent
+  ✓ never attributes a previous query's results to a new one
+  ✓ keeps the selection put while further batches land
+  ✓ does not open the palette or claim zero matches without a workspace
+6 passing (3.7s)
+```
+
+Chaque scénario cible une mutation survivante : le premier couvre le garde
+`CommandEmpty`, le cinquième la règle de resnap, le sixième le gate `root` sur
+`contentQuery`, le troisième le garde JSX du répertoire parent. La couche de
+rendu n'est donc plus sans filet, elle l'est seulement sans filet _unitaire_.
+
+Confirmé visuellement sur la capture : sur `Un émoji 🎉 avant throughput`, le
+surlignage tombe exactement sur le token. C'est `[RT-2]` prouvé à l'exécution —
+avec `String.prototype.slice`, l'emoji comptant 2 unités UTF-16, il serait
+décalé de deux caractères.
+
+Pièges du harnais rencontrés, notés ici pour la prochaine slice qui devra
+relancer le runtime :
+
+- Le `beforeBuildCommand` de Tauri appelle `vp build`, absent du `PATH` d'un
+  shell frais : le build meurt en 127 avant de compiler quoi que ce soit.
+  Préfixer par `export PATH="<repo>/node_modules/.bin:$PATH"`.
+- `cargo tauri` demande le CLI : `cargo install tauri-cli --version "^2" --locked`.
+- L'input de cmdk est contrôlé par React : une affectation directe de `value`
+  n'atteint pas le store, seuls de vrais événements clavier y arrivent.
+  `addValue` tape, et `Backspace` efface — `clear` lève sur un input vide.
+- Pour une assertion qui dépend de l'état frontend, utiliser les commandes de
+  l'app, pas l'IPC brut : `close_workspace` n'est que la moitié Rust et laisse
+  `root` posé dans le store. C'est ce qui a fait échouer le scénario 6 au
+  premier passage — le test était faux, pas le code.
+- `backdrop-filter` n'est pas composité dans `saveScreenshot` : les surfaces
+  translucides laissent voir la page derrière, nette. Du contenu qui semble
+  chevaucher la palette n'est en général que le fond non flouté.
 
 ## Slice 4 — Porteur de cible et correctifs de navigation
 

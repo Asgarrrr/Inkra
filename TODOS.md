@@ -2,6 +2,7 @@
 
 ## In Progress
 
+- Fuzzy content search and grep: [`SPECs/fuzzy-search-grep-spec.md`](SPECs/fuzzy-search-grep-spec.md), plan [`SPECs/fuzzy-search-grep-plan.md`](SPECs/fuzzy-search-grep-plan.md) — slices 0–3 landed (deps, Rust scan and ranking, streamed command, palette). Remaining: slice 4 (pending-target carrier + navigation fixes), slice 5 (jump to the matched line), slice 6 (brief highlight on arrival).
 - Reveal-in-sidebar + residual external-watcher misses: [`SPECs/reveal-in-sidebar-and-external-watcher-spec.md`](SPECs/reveal-in-sidebar-and-external-watcher-spec.md) — keep the explicit tab-context-menu "Reveal in sidebar" action working, leave ordinary file opens from expanding the Everything tree, and characterize the remaining external-file-watcher miss cases through a logging + manual-repro pass before patching further.
 
 ## Done
@@ -71,7 +72,6 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 
 #### Content features
 
-- [ ] Fuzzy content search and grep: [`SPECs/fuzzy-search-grep-spec.md`](SPECs/fuzzy-search-grep-spec.md)
 - [ ] Tags: [`SPECs/tags-spec.md`](SPECs/tags-spec.md)
 - [ ] New tab recent files: [`SPECs/new-tab-recent-files-spec.md`](SPECs/new-tab-recent-files-spec.md)
 - [ ] Document date display: [`SPECs/document-date-display-spec.md`](SPECs/document-date-display-spec.md)

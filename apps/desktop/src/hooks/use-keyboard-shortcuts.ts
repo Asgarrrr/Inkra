@@ -54,6 +54,14 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      // Cmd+Shift+F — the same palette, but content search is meaningless
+      // without a workspace. Shift uppercases `e.key` on macOS.
+      if (mod && e.shiftKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (root) openCommandPalette("search");
+        return;
+      }
+
       // Cmd+W — close current tab
       if (mod && e.key === "w") {
         if (isCompactFileMode) return;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -29,6 +29,9 @@ import {
 } from "@/hooks/use-tabs";
 import { useTheme } from "@/hooks/use-theme";
 import { useFuzzySearch } from "./use-fuzzy-search";
+import { useContentSearch } from "./use-content-search";
+import { ContentResults } from "./content-results";
+import { contentRowValue, contentSearchQuery, contentSection } from "./group-content-results";
 import { useGlobalRecentFiles } from "@/hooks/use-global-recent-files";
 import { openStandaloneFile } from "@/hooks/use-open-drop";
 import { settingsKind } from "@/components/editor-area/page-kinds/settings";
@@ -85,6 +88,10 @@ export function CommandPalette() {
   // Standalone compact windows have no workspace index — search filters the
   // global recents list client-side instead of hitting fuzzy_search.
   const results = useFuzzySearch(isCompactFileMode ? "" : fileQuery);
+  // Without a workspace the scan can only reject with `NoWorkspace`, once per
+  // debounce, and the palette would report the failure as "no matches".
+  const contentQuery = isCreateIntent || !root ? "" : contentSearchQuery(search);
+  const content = useContentSearch(contentQuery);
   const { files: globalRecents } = useGlobalRecentFiles(30, isOpen && isCompactFileMode);
   // In standalone mode new files are created next to the active file.
   const createBaseDir = root ?? (activeFilePath ? getParentDir(activeFilePath) : null);
@@ -223,24 +230,65 @@ export function CommandPalette() {
     : trimmedSearch
       ? commands.filter((c) => matchesSearch(c.label, trimmedSearch))
       : commands;
+  const section = useMemo(
+    () =>
+      contentSection({
+        query: contentQuery,
+        session: content.session,
+        isSearching: content.isSearching,
+        isStale: content.isStale,
+      }),
+    [contentQuery, content],
+  );
+  const firstContentRow = section.kind === "active" ? section.groups[0]?.results[0] : undefined;
   const firstValue =
-    visibleCommands[0]?.id ?? visibleFiles[0]?.path ?? visibleRecents[0]?.path ?? "";
+    visibleCommands[0]?.id ??
+    visibleFiles[0]?.path ??
+    visibleRecents[0]?.path ??
+    (firstContentRow ? contentRowValue(firstContentRow) : "");
+
+  const rowValues = new Set<string>();
+  for (const command of visibleCommands) rowValues.add(command.id);
+  for (const file of visibleFiles) rowValues.add(file.path);
+  for (const entry of visibleRecents) rowValues.add(entry.path);
+  if (section.kind === "active") {
+    for (const group of section.groups) {
+      for (const result of group.results) rowValues.add(contentRowValue(result));
+    }
+  }
 
   const listRef = useRef<HTMLDivElement>(null);
   const [selectedValue, setSelectedValue] = useState(firstValue);
+  const snapKey = `${intent} ${search}`;
+  const lastSnapKey = useRef(snapKey);
+  const isSelectionOnScreen = rowValues.has(selectedValue);
 
-  // Snap selection + scroll to the first item whenever the search/intent
-  // changes, or when async file results arrive and the first item shifts.
-  // firstValue is a primitive, so this is stable across renders.
+  // Content batches stream in out of score order, so the first row moves while
+  // the user is already looking at the list. cmdk keys its selection on
+  // `value`, so leaving the selection alone through a re-sort keeps it on the
+  // same row; snapping on every shift of `firstValue` would move it under the
+  // user's Enter. Snap only when the query changes or the selection is gone.
   // selectedValue is also set by cmdk onValueChange (keyboard nav) and this effect also scrolls the list — not pure derived state.
   /* eslint-disable react-doctor/no-derived-state */
   useEffect(() => {
+    if (lastSnapKey.current === snapKey && isSelectionOnScreen) return;
+    lastSnapKey.current = snapKey;
     setSelectedValue(firstValue);
     listRef.current?.scrollTo({ top: 0 });
-  }, [search, intent, firstValue]);
+  }, [snapKey, isSelectionOnScreen, firstValue]);
   /* eslint-enable react-doctor/no-derived-state */
 
   const placeholder = isCreateIntent ? "Create a new note..." : "Search...";
+  const hasRows =
+    visibleCommands.length > 0 || visibleFiles.length > 0 || visibleRecents.length > 0;
+  const isIndexingSearch = isIndexing && !isCompactFileMode && trimmedSearch !== "";
+  // The list is never at once empty of rows and empty of messages, and a
+  // message never states a verdict a scan has not reached.
+  const emptyMessage = isIndexingSearch
+    ? "Indexing workspace..."
+    : section.kind === "pending"
+      ? "Searching documents..."
+      : "No results found.";
 
   return (
     <CommandDialog
@@ -268,24 +316,16 @@ export function CommandPalette() {
           </>
         ) : (
           <>
-            {visibleFiles.length === 0 &&
-              visibleRecents.length === 0 &&
-              visibleCommands.length === 0 && (
-                <CommandEmpty>
-                  {isIndexing && trimmedSearch && !isCompactFileMode
-                    ? "Indexing workspace..."
-                    : "No results found."}
-                </CommandEmpty>
-              )}
+            {isIndexingSearch && hasRows && (
+              <div className="px-3 py-2 text-[13px] text-text-muted">Indexing workspace...</div>
+            )}
 
-            {(visibleFiles.length > 0 ||
-              visibleRecents.length > 0 ||
-              visibleCommands.length > 0) && (
-              <CommandGroup
-                heading={
-                  trimmedSearch ? (isIndexing ? "Results (indexing...)" : "Results") : "Suggested"
-                }
-              >
+            {!hasRows && (section.kind === "idle" || section.kind === "pending") && (
+              <CommandEmpty>{emptyMessage}</CommandEmpty>
+            )}
+
+            {visibleCommands.length > 0 && (
+              <CommandGroup heading="Commands">
                 {visibleCommands.map((c) => (
                   <CommandItem key={c.id} value={c.id} onSelect={c.run}>
                     <div className="flex flex-col">
@@ -294,7 +334,11 @@ export function CommandPalette() {
                     </div>
                   </CommandItem>
                 ))}
+              </CommandGroup>
+            )}
 
+            {(visibleFiles.length > 0 || visibleRecents.length > 0) && (
+              <CommandGroup heading="Files">
                 {visibleFiles.map((r) => (
                   <CommandItem key={r.path} value={r.path} onSelect={() => handleSelect(r.path)}>
                     <div className="flex min-w-0 flex-col">
@@ -322,6 +366,8 @@ export function CommandPalette() {
                 ))}
               </CommandGroup>
             )}
+
+            <ContentResults section={section} onSelect={handleSelect} />
           </>
         )}
       </CommandList>
