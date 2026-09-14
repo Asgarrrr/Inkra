@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Writer",
+  "productName": "Inkra",
   "version": "0.6.0",
-  "identifier": "com.writer-computer",
+  "identifier": "com.inkra",
   "build": {
     "beforeDevCommand": "vp dev",
     "devUrl": "http://localhost:1420",
@@ -65,10 +65,8 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENENEUyMDZFQjU0REVERTIKUldUaTdVMjFiaUJPelgxa29VQmgvbGN5TXFjQU5DTFFxQXR5S0hCYVJzY2hvRHJraFh2cXh2bFcK",
-      "endpoints": [
-        "https://github.com/joelbqz/writer-computer/releases/latest/download/latest.json"
-      ]
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5QkIzMUVGOUMyMzEwOTAKUldTUUVDT2M3ekc3T2VPaHVtUHNxVWIzZUIyNHRNVENId0d4TFB4VEV6c243Nktyd0tPdGhtM2kK",
+      "endpoints": ["https://github.com/Asgarrrr/Inkra/releases/latest/download/latest.json"]
     }
   }
 }

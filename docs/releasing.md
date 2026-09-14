@@ -1,4 +1,4 @@
-# Releasing Writer
+# Releasing Inkra
 
 How to cut a signed, notarized macOS release and publish it so the in-app updater picks it up. This is the process for an agent (or human) running locally on the maintainer's machine — releases are not built in CI.
 
@@ -47,16 +47,16 @@ Run from the repo root, passing the notes file:
 
 The script will, in order:
 
-1. Validate `.env`, signing credentials, and the notes file (must exist and be non-empty). Telemetry's `WRITER_POSTHOG_KEY` is read from `.env` too; the script refuses to build without it unless `WRITER_RELEASE_WITHOUT_TELEMETRY=1` is set, because a keyless release works normally and simply never reports anything, which is easy to miss — see [telemetry.md](./telemetry.md).
+1. Validate `.env`, signing credentials, and the notes file (must exist and be non-empty). Telemetry's `INKRA_POSTHOG_KEY` is read from `.env` too; the script refuses to build without it unless `INKRA_RELEASE_WITHOUT_TELEMETRY=1` is set, because a keyless release works normally and simply never reports anything, which is easy to miss — see [telemetry.md](./telemetry.md).
 2. Run pre-flight git checks (on master, clean tree, fast-forward of origin, tag doesn't already exist).
 3. Push `master` to origin so the commit the release will point at is published before the build starts.
 4. Build the desktop crate in release mode (`vp exec tauri build --bundles app,dmg`).
-5. Sign `Writer.app` and the DMG with the Developer ID identity from `.env`.
+5. Sign `Inkra.app` and the DMG with the Developer ID identity from `.env`.
 6. Submit the app to Apple notarization and wait for the result. This is the slowest step and the most likely to fail — if Apple returns anything other than `Accepted`, stop and report the notarization log to the user.
 7. Staple the notarization ticket to the app.
-8. Bundle `Writer.app.tar.gz` and produce `Writer.app.tar.gz.sig` using the Tauri updater key.
-9. Write `latest.json` with the new version, signature, and download URL pointing at `joelbqz/writer-computer`.
-10. Create a **draft** release on `joelbqz/writer-computer` via `gh release create --draft`, uploading the DMG, the updater tarball, and `latest.json`, with the drafted notes attached.
+8. Bundle `Inkra.app.tar.gz` and produce `Inkra.app.tar.gz.sig` using the Tauri updater key.
+9. Write `latest.json` with the new version, signature, and download URL pointing at `Asgarrrr/Inkra`.
+10. Create a **draft** release on `Asgarrrr/Inkra` via `gh release create --draft`, uploading the DMG, the updater tarball, and `latest.json`, with the drafted notes attached.
 11. Tag this repo with `v<version>` and push the tag to origin.
 12. Print the draft URL.
 
@@ -66,21 +66,21 @@ Expect the whole script to take several minutes — most of it is the cargo rele
 
 Open the draft URL printed by `distribute.sh`. Confirm:
 
-- Three assets are attached: `Writer_<version>_aarch64.dmg`, `Writer.app.tar.gz`, `latest.json`.
+- Three assets are attached: `Inkra_<version>_aarch64.dmg`, `Inkra.app.tar.gz`, `latest.json`.
 - The notes read well; edit them inline if needed.
 
 Click **Publish release**. Until you do, the in-app updater won't see the new version (the `latest` endpoint skips drafts). If you abandon the draft instead, delete the local and remote tag manually (`git tag -d v<version> && git push origin :refs/tags/v<version>`).
 
 ## Step 5 — Verify
 
-- Confirm `https://github.com/joelbqz/writer-computer/releases/latest/download/latest.json` resolves to the new version. The in-app updater hits this URL on launch (see `apps/desktop/src-tauri/tauri.conf.json`).
+- Confirm `https://github.com/Asgarrrr/Inkra/releases/latest/download/latest.json` resolves to the new version. The in-app updater hits this URL on launch (see `apps/desktop/src-tauri/tauri.conf.json`).
 - Existing installs will pick up the update on next launch.
 
 ## When things go wrong
 
 - **Pre-flight check fails.** The script aborted before doing anything irreversible. Read the error, fix the underlying state (commit, pull, bump version, etc.), and re-run.
 - **Notarization fails.** Apple's response includes a submission ID. Ask the user how to proceed — do not retry blindly. Common causes: an entitlement mismatch, an unsigned binary inside the bundle, or an expired signing identity.
-- **`gh release create` fails because the tag already exists in `writer-computer`.** A previous attempt got far enough to publish. Do not delete the existing release without explicit user permission — it may already be live to users via the updater. Ask first.
+- **`gh release create` fails because the tag already exists in `Inkra`.** A previous attempt got far enough to publish. Do not delete the existing release without explicit user permission — it may already be live to users via the updater. Ask first.
 - **Build fails after the version bump is committed.** Fix the build, commit the fix, and re-run `distribute.sh`. Do not amend or revert the bump commit unless the user asks for it.
 - **The script succeeded but the local tag push failed.** The draft is created; you just need to push the tag. Run `git push origin v<version>` manually. Don't re-run the whole script.
 - **You decide not to publish the draft.** Delete the draft on GitHub, then drop the tag: `git tag -d v<version> && git push origin :refs/tags/v<version>`.

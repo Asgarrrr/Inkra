@@ -62,12 +62,12 @@ count and the install count as two separate numbers.
 Four environment variables, all read at **build** time. Each pair is tried in
 order, and a blank value counts as absent:
 
-| Purpose | Order                                           | Default                    |
-| ------- | ----------------------------------------------- | -------------------------- |
-| Key     | `VITE_POSTHOG_KEY`, then `WRITER_POSTHOG_KEY`   | none — the site is inert   |
-| Host    | `VITE_POSTHOG_HOST`, then `WRITER_POSTHOG_HOST` | `https://us.i.posthog.com` |
+| Purpose | Order                                          | Default                    |
+| ------- | ---------------------------------------------- | -------------------------- |
+| Key     | `VITE_POSTHOG_KEY`, then `INKRA_POSTHOG_KEY`   | none — the site is inert   |
+| Host    | `VITE_POSTHOG_HOST`, then `INKRA_POSTHOG_HOST` | `https://us.i.posthog.com` |
 
-`WRITER_POSTHOG_KEY` is the desktop app's variable, and it already lives in the
+`INKRA_POSTHOG_KEY` is the desktop app's variable, and it already lives in the
 repo-root `.env` — that is what makes one value configure both surfaces with no
 drift. `VITE_POSTHOG_KEY` overrides it for the website alone, which is how you
 point the site at a scratch project without touching the app.
@@ -76,7 +76,7 @@ The key is the PostHog **project** key (a `phc_...` value). It is publishable �
 it ships in the client bundle by design and is not a secret. Do not put a
 personal API key here.
 
-### How `WRITER_POSTHOG_KEY` reaches the client
+### How `INKRA_POSTHOG_KEY` reaches the client
 
 It has no `VITE_` prefix, so Vite does not expose it. `apps/website/vite.config.ts`
 bridges it — and the host — by name through `define`, and nothing else.
@@ -90,11 +90,11 @@ signing secrets into a file served to every visitor. Adding one name to the
 
 ## No key means inert
 
-With neither `VITE_POSTHOG_KEY` nor `WRITER_POSTHOG_KEY` set,
+With neither `VITE_POSTHOG_KEY` nor `INKRA_POSTHOG_KEY` set,
 `resolveAnalyticsConfig` returns null, `PostHogProvider` is never rendered,
 `posthog.init` is never called, and `useAnalytics` returns a no-op. No network
 request is made and nothing is logged. This is the same rule the desktop app
-applies to a build with no `WRITER_POSTHOG_KEY`: inert by construction rather
+applies to a build with no `INKRA_POSTHOG_KEY`: inert by construction rather
 than merely switched off.
 
 That is what makes a plain `vp run website#build`, `vp run website#dev`, and
@@ -113,7 +113,7 @@ vp run website#build
 Or pass the value inline for a one-off:
 
 ```sh
-WRITER_POSTHOG_KEY=phc_your_project_key vp run website#build
+INKRA_POSTHOG_KEY=phc_your_project_key vp run website#build
 ```
 
 `vp run website#build` is not cached, so a later build without the variable

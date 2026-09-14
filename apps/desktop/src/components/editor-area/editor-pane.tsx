@@ -59,10 +59,10 @@ export const EditorPane = memo(function EditorPane({ path, isActive }: EditorPan
         <div
           className="mx-auto w-full pt-32 pb-6 md:pt-[9rem]"
           style={{
-            maxWidth: "var(--writer-editor-outer-width)",
+            maxWidth: "var(--inkra-editor-outer-width)",
             boxSizing: "border-box",
-            paddingLeft: "var(--writer-editor-side-padding)",
-            paddingRight: "var(--writer-editor-side-padding)",
+            paddingLeft: "var(--inkra-editor-side-padding)",
+            paddingRight: "var(--inkra-editor-side-padding)",
           }}
         >
           <FrontmatterPanel filePath={path} />

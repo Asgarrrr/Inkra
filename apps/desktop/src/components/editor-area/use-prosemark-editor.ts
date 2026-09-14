@@ -216,7 +216,7 @@ export function useProsemarkEditor(
       changes: { from: 0, to: view.state.doc.length, insert: content },
       selection: EditorSelection.cursor(cursorPos),
       annotations: Transaction.addToHistory.of(false),
-      userEvent: pathChanged ? "writer.swap" : "writer.reload",
+      userEvent: pathChanged ? "inkra.swap" : "inkra.reload",
       scrollIntoView: false,
     });
 

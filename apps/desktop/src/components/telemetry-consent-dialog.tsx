@@ -252,7 +252,7 @@ export function TelemetryConsentDialog() {
             id="telemetry-consent-description"
             className="mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]"
           >
-            Writer is made by one person. Leave your email for release news, and share light usage
+            Inkra is made by one person. Leave your email for release news, and share light usage
             data. Both change in Preferences.
           </p>
 

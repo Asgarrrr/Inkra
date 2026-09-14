@@ -1,6 +1,6 @@
 # Telemetry
 
-Writer can send a small amount of usage data to help decide what to build next.
+Inkra can send a small amount of usage data to help decide what to build next.
 **It is off until you turn it on.** No usage data is collected before you accept
 the first-run prompt — the one exception is a single `prompt_declined` event if
 you answer **Not now**, described below and listed in the prompt itself. Either
@@ -25,7 +25,7 @@ that talks to an analytics service.
 
 Turning it off takes effect immediately; nothing is queued for later.
 
-The setting on its own is not consent. Writer also keeps a record that _this
+The setting on its own is not consent. Inkra also keeps a record that _this
 install_ answered the first-run prompt, and it sends nothing until that record
 exists — so a `config` file copied from another machine with the setting turned
 on does not send anything until you have seen the prompt here and accepted it.
@@ -49,7 +49,7 @@ them entirely. The last two are exceptions, and both are deliberate.
 `email_updated` is how an address you typed reaches the maintainer, so it is
 sent even with usage data off, and only when the field actually changes.
 
-`prompt_declined` is the one thing Writer sends on behalf of someone who said
+`prompt_declined` is the one thing Inkra sends on behalf of someone who said
 no. It is a single event carrying the properties in the table above and nothing
 else — no email, since declining never records one — and it is sent once per
 install. Its purpose is to make the opt-in rate knowable: without it, a decline
@@ -82,7 +82,7 @@ snippet of your writing cannot reach the analytics service by accident.
 
 ## The email field
 
-The email is **optional and self-declared**. Writer does not read it from your
+The email is **optional and self-declared**. Inkra does not read it from your
 system, your git config, or anywhere else — the only way it gets set is if you
 type it into the first-run dialog or Preferences → Privacy → **Email**.
 
@@ -99,7 +99,7 @@ stopping to send it. Nothing else is sent while usage data is off.
 ## Your identifier
 
 A random UUID is generated the first time telemetry initializes and stored in
-`telemetry.json` in Writer's application data directory, alongside a flag
+`telemetry.json` in Inkra's application data directory, alongside a flag
 recording that you have answered the first-run prompt.
 
 It is deliberately kept out of your `config` file: that file is human-editable
@@ -118,18 +118,18 @@ PostHog Cloud (US region, `https://us.i.posthog.com`), via a single
 Three independent switches, any one of which is sufficient:
 
 1. **Don't enable it.** This is the default.
-2. **`WRITER_TELEMETRY_DISABLED=1`** (any non-empty value) in the environment
+2. **`INKRA_TELEMETRY_DISABLED=1`** (any non-empty value) in the environment
    disables telemetry at runtime regardless of your settings — the client is never constructed, so no
    identifier is generated and nothing is written to disk. It is read at
    startup, so it applies from the next launch onward. Intended for distro
    packagers and for anyone running a build they did not make themselves.
 3. **Build it yourself.** The PostHog project key is supplied at compile time
-   via `WRITER_POSTHOG_KEY`. A build without that variable — which is what you
+   via `INKRA_POSTHOG_KEY`. A build without that variable — which is what you
    get by cloning this repo and running `vp dev` or `cargo build` — has no key
    compiled in, never constructs the client, never generates an identifier, and
    never shows the consent prompt, whatever the settings say.
 
-`WRITER_POSTHOG_HOST` overrides the destination if you run your own PostHog.
+`INKRA_POSTHOG_HOST` overrides the destination if you run your own PostHog.
 
 ## For contributors
 
@@ -138,7 +138,7 @@ production analytics. To exercise the real path against your own PostHog
 project:
 
 ```bash
-WRITER_POSTHOG_KEY=phc_your_project_key vp dev
+INKRA_POSTHOG_KEY=phc_your_project_key vp dev
 ```
 
 Adding an event means editing three things in the same commit: the `track` call

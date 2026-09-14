@@ -1,14 +1,14 @@
 # Website Deploy
 
-The marketing website lives in `apps/website/` and deploys to the existing Cloudflare Worker service `writer-website`.
+The marketing website lives in `apps/website/` and deploys to the Cloudflare Worker service `inkra-website`.
 
 ## Configuration
 
 - Worker config: `wrangler.jsonc`
-- Worker name: `writer-website`
+- Worker name: `inkra-website`
 - Static assets directory: `apps/website/dist/client`
-- Production URL: `https://writer.computer`
-- Analytics: `WRITER_POSTHOG_KEY` from the repo-root `.env`, shared with the desktop app — see [website-analytics.md](./website-analytics.md)
+- Production URL: none yet — Inkra has no domain registered. `apps/website/src/routes/__root.tsx` carries `https://inkra.invalid` as an unresolvable placeholder for the Open Graph tags; replace it and this line together once the domain exists.
+- Analytics: `INKRA_POSTHOG_KEY` from the repo-root `.env`, shared with the desktop app — see [website-analytics.md](./website-analytics.md)
 
 The Worker name in Cloudflare must match `name` in `wrangler.jsonc` so local deploys update the intended service.
 
@@ -24,25 +24,26 @@ vp dlx wrangler deploy --config wrangler.jsonc
 ```
 
 The `source .env` line is what supplies the analytics key: the site shares the
-desktop app's PostHog project via `WRITER_POSTHOG_KEY`, and the website build
+desktop app's PostHog project via `INKRA_POSTHOG_KEY`, and the website build
 does not load that file on its own. The key is read by the **build**, not by the
 Worker — it is inlined into the client bundle, so a Cloudflare Worker variable
 or secret has no effect, and building without it deploys a site that sends
-nothing. Only `WRITER_POSTHOG_KEY` and `WRITER_POSTHOG_HOST` are bridged into
+nothing. Only `INKRA_POSTHOG_KEY` and `INKRA_POSTHOG_HOST` are bridged into
 the bundle by name; the signing credentials in that same `.env` are not, and
 `apps/website/vite.config.ts` explains why it has to stay that way. See
 [website-analytics.md](./website-analytics.md).
 
-Wrangler must be logged into the Cloudflare account that owns `writer-website`:
+Wrangler must be logged into the Cloudflare account that owns `inkra-website`:
 
 ```sh
 vp dlx wrangler login
 ```
 
-Verify the deployment:
+Verify the deployment against the `*.workers.dev` URL that Wrangler prints, or
+against the production domain once one is registered:
 
 ```sh
-curl -I https://writer.computer
+curl -I https://<deployed-url>
 ```
 
 ## Notes

@@ -69,11 +69,11 @@ const headingWeightHighlight = Prec.highest(
 );
 
 // Mirror document and caret changes into the editor store. Swaps and reloads
-// carry a "writer" userEvent and are skipped: the store already has that
+// carry an "inkra" userEvent and are skipped: the store already has that
 // content and the caret is being restored, not moved.
 function storeSyncExtension(getFilePath: () => string): Extension {
   return EditorView.updateListener.of((update) => {
-    const isSwap = update.transactions.some((tr) => tr.isUserEvent("writer"));
+    const isSwap = update.transactions.some((tr) => tr.isUserEvent("inkra"));
     if (update.docChanged && !isSwap) {
       editorApi.updateContent(getFilePath(), update.state.doc.toString());
     }

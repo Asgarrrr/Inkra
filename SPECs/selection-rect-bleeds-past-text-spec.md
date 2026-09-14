@@ -40,15 +40,15 @@ Two interacting facts produce the giant rectangle:
 ### 1. Page side-padding is on `.cm-content`, not `.cm-line`
 
 `apps/desktop/src/components/editor-area/prosemark-theme.css:60-66` puts the
-4rem (`--writer-editor-side-padding`) horizontal page padding on
+4rem (`--inkra-editor-side-padding`) horizontal page padding on
 `.cm-content`:
 
 ```css
 .cm-editor .cm-content {
   …
-  max-width: var(--writer-editor-outer-width, calc(734px + 4rem + 4rem));
+  max-width: var(--inkra-editor-outer-width, calc(734px + 4rem + 4rem));
   margin: 0 auto;
-  padding: 0 var(--writer-editor-side-padding, 4rem) 100px;
+  padding: 0 var(--inkra-editor-side-padding, 4rem) 100px;
   …
 }
 ```
@@ -159,11 +159,11 @@ the scroller**:
   computed text-column inset:
   ```
   X = max(
-    var(--writer-editor-side-padding),
-    (100% - var(--writer-editor-outer-width)) / 2 + var(--writer-editor-side-padding)
+    var(--inkra-editor-side-padding),
+    (100% - var(--inkra-editor-outer-width)) / 2 + var(--inkra-editor-side-padding)
   )
   ```
-  When the editor pane is wider than `--writer-editor-outer-width`,
+  When the editor pane is wider than `--inkra-editor-outer-width`,
   `cm-content` is centered inside the pane, so the text column starts at
   `(pane − outer)/2 + side-padding` from the scroller's left edge. When
   the pane is narrower, `cm-content` fills the pane and the text column

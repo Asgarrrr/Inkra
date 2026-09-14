@@ -38,16 +38,16 @@ type AnalyticsProperties = { app_version: string };
 
 /**
  * Resolved once, at module load. Every input is inlined at build time — the
- * `VITE_*` pair by Vite, the `WRITER_*` pair by the `define` bridge in
+ * `VITE_*` pair by Vite, the `INKRA_*` pair by the `define` bridge in
  * `vite.config.ts` — so this is a constant and the element tree below never
  * changes shape between renders. The four are passed by name rather than
  * handing over `import.meta.env`, which carries only the `VITE_*` ones.
  */
 const config = resolveAnalyticsConfig({
   VITE_POSTHOG_KEY: import.meta.env.VITE_POSTHOG_KEY,
-  WRITER_POSTHOG_KEY: __WRITER_POSTHOG_KEY__,
+  INKRA_POSTHOG_KEY: __INKRA_POSTHOG_KEY__,
   VITE_POSTHOG_HOST: import.meta.env.VITE_POSTHOG_HOST,
-  WRITER_POSTHOG_HOST: __WRITER_POSTHOG_HOST__,
+  INKRA_POSTHOG_HOST: __INKRA_POSTHOG_HOST__,
 });
 
 /**

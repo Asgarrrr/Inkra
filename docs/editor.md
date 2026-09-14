@@ -32,14 +32,14 @@ CodeMirror's built-in scroll APIs assume the editor owns its scroll container (`
 
 These are correct when `view.scrollDOM` is the actual scrolling element.
 
-In Writer's editor, `.cm-scroller` has `overflow: visible !important` (see `prosemark-theme.css`) and the surrounding `EditorScrollContainer` is the real scroller. CodeMirror's default scroll walks up to scroll ancestors generically, but `scrollMargins` only applies to `view.scrollDOM`'s computation — so the match can still land under the outer container's fade.
+In Inkra's editor, `.cm-scroller` has `overflow: visible !important` (see `prosemark-theme.css`) and the surrounding `EditorScrollContainer` is the real scroller. CodeMirror's default scroll walks up to scroll ancestors generically, but `scrollMargins` only applies to `view.scrollDOM`'s computation — so the match can still land under the outer container's fade.
 
 When the scrollable element is an ancestor:
 
 - Use `EditorView.scrollHandler.of(...)` to take over scrolling.
 - Find the ancestor scroller by walking `view.dom.parentElement` for the first element with `overflowY: auto | scroll`.
 - Scroll it yourself with `scroller.scrollTo({ top, behavior: "auto" })`. `behavior: "smooth"` is async and gets interrupted by rapid keystrokes (e.g. Cmd+G held down).
-- Account for `clientTop` if the ancestor has a border (Writer's container has a 12px transparent border-top to give the mask gradient room).
+- Account for `clientTop` if the ancestor has a border (Inkra's container has a 12px transparent border-top to give the mask gradient room).
 
 Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/use-prosemark-editor.ts`.
 
@@ -69,7 +69,7 @@ Do not try to suppress the listener instead. A value-matching suppression ("drop
 
 - **It is dispatched after the scroll.** The parse feeds the measurement the scroll makes; a transaction between them is one more thing that can move the heightmap under it. Decoration marks change no heights, so the drift correction still measures what the jump aimed at. That invariant lives in the stylesheet, and `prosemark-theme.css` says so: no rule on `.cm-match-flash` may change a line's metrics.
 - **Every jump dispatches, including one with nothing to flash.** `flashMatchRanges` is also the only path that puts a flash out early, so a jump that skipped it would leave the previous flash burning on a line the reader has left. A `Decoration.none` transaction changes no heights either.
-- **A swap or a watcher reload clears the field**, keyed on the `writer.swap` / `writer.reload` user event that `use-prosemark-editor.ts` already stamps. Today's swap replaces the whole document, so mapping would drop the ranges anyway; the user event is what keeps that true of a swap that reuses part of the text.
+- **A swap or a watcher reload clears the field**, keyed on the `inkra.swap` / `inkra.reload` user event that `use-prosemark-editor.ts` already stamps. Today's swap replaces the whole document, so mapping would drop the ranges anyway; the user event is what keeps that true of a swap that reuses part of the text.
 - **The expiry timer is per view**, in a `WeakMap`. One module-level timer would let a flash in a second pane cancel the first pane's expiry and leave it lit until its next edit.
 - **The offsets come from `resolveTarget`, in UTF-16 units.** The scan counts codepoints (`[RT-2]` in the content-search plan), so the conversion walks the line once with a monotone cursor, sorted and stopped as soon as the last offset resolves — the source line behind a windowed snippet can be megabytes long, and a slice per range is quadratic.
 - **`MATCH_FLASH_MS` is the only duration.** The stylesheet reads it as `--match-flash-duration`, pushed onto the span through the decoration's `attributes`. A literal in the CSS drifts: too long leaves an invisible mark, too short cuts the fade off mid-way.
@@ -184,7 +184,7 @@ view.dispatch({
 
 `scrollSnapshot` captures the viewport-top doc anchor and its screen offset; CM applies the resulting `StateEffect` after the heightmap rebuild and re-scrolls so the same anchor lands at the same screen Y. Don't roll your own `coordsAtPos`-delta scroll math — it depends on layout being flushed and is brittle.
 
-**Caveat: `scrollSnapshot` only affects `view.scrollDOM`, not ancestor scrollers** (per CM's own doc comment; both capture and apply use `scrollDOM.scrollTop`). In Writer, `.cm-scroller` doesn't scroll — the outer `EditorScrollContainer` does — so the snapshot is close to a no-op here. What actually keeps the viewport stable across height changes is CM's measure-loop scroll anchoring, which does adjust the discovered ancestor scroller — but only while the editor has focus or a wheel/touch event happened in the last 100ms. Corollary: widgets whose DOM changes height after insertion (async image decode, deferred renders) must keep `estimatedHeight` truthful and call `view.requestMeasure()` when their height settles, so the anchoring runs while the user is still interacting. `fold/image.ts` does this with a module-level measured-height cache keyed by image URL, reserving the cached height on the `<img>` until it (re)loads.
+**Caveat: `scrollSnapshot` only affects `view.scrollDOM`, not ancestor scrollers** (per CM's own doc comment; both capture and apply use `scrollDOM.scrollTop`). In Inkra, `.cm-scroller` doesn't scroll — the outer `EditorScrollContainer` does — so the snapshot is close to a no-op here. What actually keeps the viewport stable across height changes is CM's measure-loop scroll anchoring, which does adjust the discovered ancestor scroller — but only while the editor has focus or a wheel/touch event happened in the last 100ms. Corollary: widgets whose DOM changes height after insertion (async image decode, deferred renders) must keep `estimatedHeight` truthful and call `view.requestMeasure()` when their height settles, so the anchoring runs while the user is still interacting. `fold/image.ts` does this with a module-level measured-height cache keyed by image URL, reserving the cached height on the `<img>` until it (re)loads.
 
 Second corollary: that focus/wheel predicate is now encoded as a guard in `correctDrift` (`editor-scroll.ts`). A programmatic jump corrects its own drift only on an unfocused view, because on a focused one CodeMirror's anchoring already compensates and the two additions stack.
 
@@ -226,7 +226,7 @@ When a widget has a click → dispatch → mode-change cycle, mount a real `Edit
 - `fold/image.ts` — canonical conditional replace ↔ widget, plus the measured-height cache for async-loading content.
 - `table-decorations.ts` — canonical conditional replace ↔ source-line styling; uses `selectAllDecorationsOnSelectExtension` for click-to-select.
 - `prosemark-core/links.ts` — `linkUrlAt` / `rawUrlAt`, the one place that resolves a link destination from a document position.
-- `prosemark-core/imageSrc.ts` — `imageSrcResolverFacet` / `resolveImageSrc`; widgets resolve `<img src>` in `toDOM` (Writer provides the facet from `image-src-resolver.ts`), so no DOM observer rewrites images after insertion.
+- `prosemark-core/imageSrc.ts` — `imageSrcResolverFacet` / `resolveImageSrc`; widgets resolve `<img src>` in `toDOM` (Inkra provides the facet from `image-src-resolver.ts`), so no DOM observer rewrites images after insertion.
 - `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed. `jumpToPos` also forces the parse of the target region before measuring it, flashes the target's ranges, and corrects the residual drift afterwards (`correctDrift`, unfocused views only).
 - `match-flash.ts` — `flashMatchRanges` and the field it drives, the one place the editor highlights something transiently. The class it applies, `.cm-match-flash`, is styled in `prosemark-theme.css` (and held flat under `prefers-reduced-motion`).
 - `viewport-parse.ts` — `parseThrough`, the one place a parse target is derived from a document position (overshoot + time budget), plus `advanceViewportParse` (mount and swap) and `viewportParsePlugin` (scroll).

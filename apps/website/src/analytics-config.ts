@@ -4,15 +4,15 @@
  * `posthog-js` into a test.
  *
  * The site and the desktop app share one PostHog project, so the desktop's
- * `WRITER_POSTHOG_KEY` — which already lives in the repo-root `.env` — stands
+ * `INKRA_POSTHOG_KEY` — which already lives in the repo-root `.env` — stands
  * in as the fallback. `VITE_POSTHOG_KEY` still wins where it is set, which is
  * what lets the site be pointed somewhere else without touching the app.
  *
- * `WRITER_*` has no `VITE_` prefix, so Vite does not expose it on its own; it
+ * `INKRA_*` has no `VITE_` prefix, so Vite does not expose it on its own; it
  * is bridged by name in `vite.config.ts`. See `docs/website-analytics.md`.
  */
 
-/** Matches the desktop app's `WRITER_POSTHOG_HOST` default. */
+/** Matches the desktop app's `INKRA_POSTHOG_HOST` default. */
 export const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 export type AnalyticsConfig = { key: string; host: string };
@@ -24,9 +24,9 @@ export type AnalyticsConfig = { key: string; host: string };
  */
 export type AnalyticsEnv = {
   VITE_POSTHOG_KEY?: string;
-  WRITER_POSTHOG_KEY?: string;
+  INKRA_POSTHOG_KEY?: string;
   VITE_POSTHOG_HOST?: string;
-  WRITER_POSTHOG_HOST?: string;
+  INKRA_POSTHOG_HOST?: string;
 };
 
 /** First value that is set and not just whitespace. */
@@ -44,9 +44,9 @@ function firstConfigured(...values: (string | undefined)[]): string | undefined 
  * inert rather than merely switched off.
  */
 export function resolveAnalyticsConfig(env: AnalyticsEnv): AnalyticsConfig | null {
-  const key = firstConfigured(env.VITE_POSTHOG_KEY, env.WRITER_POSTHOG_KEY);
+  const key = firstConfigured(env.VITE_POSTHOG_KEY, env.INKRA_POSTHOG_KEY);
   if (!key) return null;
   const host =
-    firstConfigured(env.VITE_POSTHOG_HOST, env.WRITER_POSTHOG_HOST) ?? DEFAULT_POSTHOG_HOST;
+    firstConfigured(env.VITE_POSTHOG_HOST, env.INKRA_POSTHOG_HOST) ?? DEFAULT_POSTHOG_HOST;
   return { key, host };
 }

@@ -103,16 +103,16 @@
   --chrome-control-height: 32px;
   --chrome-control-padding: 12px;
   --chrome-drag-height: 72px;
-  --writer-editor-max-width: 734px;
-  --writer-editor-side-padding: clamp(1.5rem, 4vw, 4rem);
-  --writer-editor-outer-width: calc(
-    var(--writer-editor-max-width) + var(--writer-editor-side-padding) +
-      var(--writer-editor-side-padding)
+  --inkra-editor-max-width: 734px;
+  --inkra-editor-side-padding: clamp(1.5rem, 4vw, 4rem);
+  --inkra-editor-outer-width: calc(
+    var(--inkra-editor-max-width) + var(--inkra-editor-side-padding) +
+      var(--inkra-editor-side-padding)
   );
-  --writer-editor-font-family: var(--editor-font);
-  --writer-editor-font-size: 16px;
-  --writer-editor-line-height: 1.8;
-  --writer-editor-letter-spacing: 0em;
+  --inkra-editor-font-family: var(--editor-font);
+  --inkra-editor-font-size: 16px;
+  --inkra-editor-line-height: 1.8;
+  --inkra-editor-letter-spacing: 0em;
 
   font-family: var(--ui-font);
   line-height: 1.5;

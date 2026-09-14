@@ -200,7 +200,7 @@ describe("flashMatchRanges", () => {
     const { view } = fakeView("alpha beta");
 
     flashMatchRanges(view, [{ from: 6, to: 10 }]);
-    view.dispatch({ changes: { from: 0, insert: "swapped " }, userEvent: "writer.swap" });
+    view.dispatch({ changes: { from: 0, insert: "swapped " }, userEvent: "inkra.swap" });
 
     expect(flashing(view)).toEqual([]);
   });
@@ -209,7 +209,7 @@ describe("flashMatchRanges", () => {
     const { view } = fakeView("alpha beta");
 
     flashMatchRanges(view, [{ from: 6, to: 10 }]);
-    view.dispatch({ changes: { from: 0, insert: "reloaded " }, userEvent: "writer.reload" });
+    view.dispatch({ changes: { from: 0, insert: "reloaded " }, userEvent: "inkra.reload" });
 
     expect(flashing(view)).toEqual([]);
   });

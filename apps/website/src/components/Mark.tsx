@@ -1,4 +1,4 @@
-export function WriterMark({ size = 18 }: { size?: number }) {
+export function InkraMark({ size = 18 }: { size?: number }) {
   const w = (size * 27) / 19;
   return (
     <svg

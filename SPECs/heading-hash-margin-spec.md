@@ -118,7 +118,7 @@ get a split span.
 
 The selection-rect-bleed fix
 (`SPECs/selection-rect-bleeds-past-text-spec.md`) puts a `clip-path: inset
-(0 var(--writer-text-col-inset))` on `.cm-scroller`
+(0 var(--inkra-text-col-inset))` on `.cm-scroller`
 (`prosemark-theme.css:78`). This clips the painted output of the entire
 scroller subtree to the inner text column.
 

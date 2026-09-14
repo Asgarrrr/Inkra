@@ -29,11 +29,11 @@ function flashMark(serial: number) {
 export const matchFlashField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(flash, tr) {
-    // A tab swap or a watcher reload — both stamped "writer" — brings in text
+    // A tab swap or a watcher reload — both stamped "inkra" — brings in text
     // the ranges were never measured against. Today's swap replaces the whole
     // document, so mapping would drop them anyway; keying on the user event is
     // what keeps that true of a swap that reuses part of the text.
-    if (tr.isUserEvent("writer")) return Decoration.none;
+    if (tr.isUserEvent("inkra")) return Decoration.none;
 
     let next = flash.map(tr.changes);
     for (const effect of tr.effects) {

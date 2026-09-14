@@ -6,15 +6,15 @@ import { ok, strictEqual } from "node:assert/strict";
 // spec self-skips otherwise — that is the same guard real users get, and a
 // keyless dev build correctly shows nothing. Build with:
 //
-//   WRITER_POSTHOG_KEY=phc_e2e_fake_key WRITER_POSTHOG_HOST=http://127.0.0.1:9 \
+//   INKRA_POSTHOG_KEY=phc_e2e_fake_key INKRA_POSTHOG_HOST=http://127.0.0.1:9 \
 //     cargo tauri build --features e2e --bundles app --ignore-version-mismatches \
-//     --config '{"identifier":"com.writer-computer.e2e","bundle":{"createUpdaterArtifacts":false}}'
+//     --config '{"identifier":"com.inkra.e2e","bundle":{"createUpdaterArtifacts":false}}'
 //
 // The discard-port host keeps the fake key from reaching a real project: the
 // dispatcher's request fails fast and the event is dropped.
 //
 // Between runs, wipe both `telemetry.json` (`prompted` is one-shot by design)
-// and the `config` file in `~/Library/Application Support/com.writer-computer.e2e/`
+// and the `config` file in `~/Library/Application Support/com.inkra.e2e/`
 // — an earlier accepted run leaves `telemetry.enabled = true` there, which the
 // "off while the prompt is open" assertion below reads back.
 describe("telemetry consent dialog", function () {

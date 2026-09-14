@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Rename the project from Writer to Inkra. Inkra is a fork of [Writer](https://github.com/joelbqz/writer-computer) by Joel, which remains available and is unaffected by this; Inkra is now maintained independently by Jérémy Caruelle and continues under the same GPL-3.0 license. Releases, issues, and updates move to [Asgarrrr/Inkra](https://github.com/Asgarrrr/Inkra).
+- **Inkra installs alongside Writer rather than over it, and starts empty.** The macOS bundle identifier changes from `com.writer-computer` to `com.inkra`, so the system treats Inkra as a separate application: it gets its own application-data directory, and your Writer preferences, recent workspaces, telemetry choice, and window state are **not** carried over. This is deliberate — the two apps are no longer the same product and should not share state. Your documents are untouched; they live in your workspace folders, not in application data. Writer stays installed and keeps working until you remove it, and Writer's updater will never offer you Inkra, nor Inkra's updater offer you Writer, because each is now signed with its own key and points at its own release feed. To carry settings across, set them again in Inkra under Preferences.
+- The command-line tool is renamed from `writer` to `inkra`, and the app menu item now reads **Install 'inkra' Command Line Tool…**. An existing `writer` symlink in `/usr/local/bin` is left alone — Inkra neither reuses nor removes it; uninstall it from Writer, or delete it by hand. Environment variables follow the same rename: `WRITER_APP_PATH`, `WRITER_TELEMETRY_DISABLED`, `WRITER_POSTHOG_KEY`, `WRITER_POSTHOG_HOST`, and `WRITER_WATCHER_LOG` become their `INKRA_*` equivalents, and the old names are no longer read.
+
 ## 2026-09-14
 
 - Fix anchor links to a heading in the document you are already reading doing nothing. Clicking `[see](#setup)` now scrolls to that heading, and says so when the document has no such heading.

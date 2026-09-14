@@ -10,7 +10,7 @@ export interface JumpTarget {
   flash: readonly FlashRange[];
 }
 
-/** The nearest ancestor of `root` that actually scrolls. Writer's `.cm-scroller`
+/** The nearest ancestor of `root` that actually scrolls. Inkra's `.cm-scroller`
  *  is `overflow: visible`; the real scroller is `EditorScrollContainer`. */
 export function findOuterScroller(root: HTMLElement): HTMLElement | null {
   let node: HTMLElement | null = root.parentElement;

@@ -203,7 +203,7 @@ We deliberately do **not** add a `useRevealOnSidebarClick`, `useRevealOnWikiLink
 
 ### File-naming
 
-Per CLAUDE.md memory ([`feedback_kebab_case_filenames.md`](../../../../.claude/projects/-Users-joel-j-projects-writer-computer/memory/feedback_kebab_case_filenames.md)):
+Per CLAUDE.md memory (`feedback_kebab_case_filenames.md`, kebab-case filenames):
 
 - `apps/desktop/src/lib/reveal-in-sidebar.ts`
 

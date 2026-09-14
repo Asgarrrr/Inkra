@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), "../screenshots");
-const WORKSPACE = join(tmpdir(), "writer-e2e-content-search");
+const WORKSPACE = join(tmpdir(), "inkra-e2e-content-search");
 const QUERY = "throughput";
 
 // Mirrors EDITOR_SAFE_SCROLL_MARGIN (editor-scroll-container.tsx): where
@@ -239,7 +239,7 @@ async function activateAppWindow() {
     await new Promise((resolve) => {
       execFile(
         "osascript",
-        ["-e", 'tell application "System Events" to set frontmost of process "Writer" to true'],
+        ["-e", 'tell application "System Events" to set frontmost of process "Inkra" to true'],
         () => resolve(),
       );
     });

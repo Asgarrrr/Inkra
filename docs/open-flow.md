@@ -1,4 +1,4 @@
-# Writer Open Flows
+# Inkra Open Flows
 
 How files and folders reach the editor from every entry point.
 
@@ -30,12 +30,12 @@ Input path
   └─ otherwise  → None (lenient) / Error (strict CLI)
 ```
 
-## 1. Cold Start (`writer .`, Finder open, dock drop while not running)
+## 1. Cold Start (`inkra .`, Finder open, dock drop while not running)
 
-The `writer` symlink invokes the same binary as the GUI app. `main.rs`
-dispatches on argv\[0\]: basename `writer` → CLI launcher, `Writer` → Tauri app.
+The `inkra` symlink invokes the same binary as the GUI app. `main.rs`
+dispatches on argv\[0\]: basename `inkra` → CLI launcher, `Inkra` → Tauri app.
 
-On macOS the open target is **not** delivered through argv — `open -a Writer
+On macOS the open target is **not** delivered through argv — `open -a Inkra
 /path` (which the CLI launcher, Finder, and dock all use) delivers it via the
 `RunEvent::Opened` system event. That event can fire before `setup()` builds the
 main window or after Tauri has built the still-hidden webview but before React
@@ -159,7 +159,7 @@ main window while `startup_open` is still readable instead of spawning a new one
 
 ## 4. Second Launch (Single-Instance Plugin)
 
-When Writer is already running and the user runs `writer .` again, the OS hands
+When Inkra is already running and the user runs `inkra .` again, the OS hands
 the second process's argv to the existing process via
 `tauri-plugin-single-instance`.
 
@@ -172,7 +172,7 @@ sequenceDiagram
     participant NewWV as New Window
     participant WV as Existing Window
 
-    Shell->>OS: writer ~/docs → open -a Writer ~/docs
+    Shell->>OS: inkra ~/docs → open -a Inkra ~/docs
     OS->>Plugin: 2nd process argv intercepted
     Plugin->>Rust: handle_single_instance(argv)
     Rust->>Rust: resolve_path(argv[1])
@@ -258,7 +258,7 @@ sequenceDiagram
 
 - **Explicit open ≠ session restore**: when `startup_open` is set, the restore
   bundle's session and active file are stripped and `open_file` carries the
-  request. So `writer file.md` opens just that file, not the previous session's
+  request. So `inkra file.md` opens just that file, not the previous session's
   tabs. With no `startup_open`, the bundle keeps the session and restores tabs.
 
 - **One IPC, one render**: `get_startup_state` bundles settings + recents + the

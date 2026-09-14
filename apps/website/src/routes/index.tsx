@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { useAnalytics } from "../analytics";
-import { AppleGlyph, WriterMark } from "../components/Mark";
+import { AppleGlyph, InkraMark } from "../components/Mark";
 
 const FEATURES = [
   { label: "Private", description: "all your documents live in your computer" },
@@ -34,8 +34,8 @@ function HomePage() {
     <div className="page">
       <main className="hero">
         <header className="site-header">
-          <Link className="brand" to="/" aria-label="Writer">
-            <WriterMark size={18} />
+          <Link className="brand" to="/" aria-label="Inkra">
+            <InkraMark size={18} />
             <span className="brand-rule" aria-hidden="true" />
           </Link>
           <nav className="site-nav">
@@ -50,7 +50,7 @@ function HomePage() {
             </a>
             <a
               className="pill pill-outline"
-              href={__WRITER_REPO_URL__}
+              href={__INKRA_REPO_URL__}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => capture("github_opened")}
@@ -65,14 +65,14 @@ function HomePage() {
         <div className="cta">
           <a
             className="download"
-            href={__WRITER_DMG_URL__}
-            onClick={() => capture("download_started", { app_version: __WRITER_VERSION__ })}
+            href={__INKRA_DMG_URL__}
+            onClick={() => capture("download_started", { app_version: __INKRA_VERSION__ })}
           >
             <AppleGlyph size={20} />
             <span>Download for MacOS</span>
           </a>
           <span className="alpha-pill">Alpha</span>
-          <span className="version">v{__WRITER_VERSION__}</span>
+          <span className="version">v{__INKRA_VERSION__}</span>
         </div>
 
         <p className="caption">Free and open source. Forever</p>
@@ -106,7 +106,7 @@ function DemoVideo({ src }: { src: string }) {
         loop
         playsInline
         preload="metadata"
-        aria-label="Writer app demo"
+        aria-label="Inkra app demo"
       />
     </div>
   );

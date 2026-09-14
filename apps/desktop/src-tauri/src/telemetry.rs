@@ -1,6 +1,6 @@
 //! Opt-in usage telemetry.
 //!
-//! The entire network surface of Writer's analytics lives in this file. Nothing
+//! The entire network surface of Inkra's analytics lives in this file. Nothing
 //! here runs until the user explicitly enables telemetry from the first-run
 //! consent dialog or Preferences — `track` bails on an atomic load before it
 //! allocates anything.
@@ -11,9 +11,9 @@
 //!
 //! Four things gate a request, and all four must pass:
 //!
-//!   1. `WRITER_POSTHOG_KEY` was set at *build* time. An unconfigured build —
+//!   1. `INKRA_POSTHOG_KEY` was set at *build* time. An unconfigured build —
 //!      which is what anyone cloning this repo gets — cannot phone home at all.
-//!   2. `WRITER_TELEMETRY_DISABLED` is not set in the environment.
+//!   2. `INKRA_TELEMETRY_DISABLED` is not set in the environment.
 //!   3. `telemetry.enabled` is true in settings.
 //!   4. This install has answered the first-run prompt. The setting lives in
 //!      `config` and the prompt record in `telemetry.json`; they can disagree
@@ -39,19 +39,19 @@ use tauri::Manager;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 /// Compiled-in project token. Absent in development and in any build that does
-/// not pass `WRITER_POSTHOG_KEY`, which makes telemetry structurally inert
+/// not pass `INKRA_POSTHOG_KEY`, which makes telemetry structurally inert
 /// rather than merely switched off.
-const POSTHOG_KEY: Option<&str> = option_env!("WRITER_POSTHOG_KEY");
+const POSTHOG_KEY: Option<&str> = option_env!("INKRA_POSTHOG_KEY");
 
 /// Ingestion host. Overridable at build time so self-hosted forks do not have
 /// to patch code.
-const POSTHOG_HOST: &str = match option_env!("WRITER_POSTHOG_HOST") {
+const POSTHOG_HOST: &str = match option_env!("INKRA_POSTHOG_HOST") {
     Some(host) => host,
     None => "https://us.i.posthog.com",
 };
 
 /// Runtime kill switch for packagers and for users of third-party builds.
-const DISABLE_ENV_VAR: &str = "WRITER_TELEMETRY_DISABLED";
+const DISABLE_ENV_VAR: &str = "INKRA_TELEMETRY_DISABLED";
 
 const ENABLED_SETTING_KEY: &str = "telemetry.enabled";
 const EMAIL_SETTING_KEY: &str = "telemetry.email";

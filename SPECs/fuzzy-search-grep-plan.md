@@ -1262,7 +1262,7 @@ Ce qui a atterri :
   `heading` n'en porte pas, donc **pas de flash sur le chemin des ancres**, le
   comportement vérifié de la slice 4 reste intact.
 - `match-flash.ts` — `setMatchFlash`, `matchFlashField`, minuterie par vue en
-  `WeakMap`, vidage sur `tr.isUserEvent("writer")`.
+  `WeakMap`, vidage sur `tr.isUserEvent("inkra")`.
 - `link-navigation.ts` — `targetDocPos` devient `resolveTarget` et rend
   `{ pos, flash }` : `jumpToPos` reste le point d'application unique pour les
   deux chemins. Renommage forcé par le type de retour, pas opportuniste.
