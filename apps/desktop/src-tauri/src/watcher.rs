@@ -60,10 +60,10 @@ fn should_ignore(path: &Path, workspace_root: &Path) -> bool {
         if name == ".git" || name == "node_modules" || name == ".DS_Store" {
             return true;
         }
-        // Allow .writer directory (workspace config) and .gitignore files —
+        // Allow .inkra directory (workspace config) and .gitignore files —
         // both must be watchable: settings reload on the former, matcher
         // rebuild on the latter.
-        if name == ".writer" || name == ".gitignore" {
+        if name == ".inkra" || name == ".gitignore" {
             continue;
         }
         if name.starts_with('.') && name.len() > 1 {
@@ -85,10 +85,10 @@ fn is_workspace_ignored(state: &WorkspaceState, path: &Path, is_dir: bool) -> bo
 
 /// Check if a path is a config file that should trigger settings reload.
 fn is_config_file(path: &Path) -> bool {
-    // Workspace config: .writer/config
+    // Workspace config: .inkra/config
     if path.file_name().and_then(|n| n.to_str()) == Some("config") {
         if let Some(parent) = path.parent() {
-            if parent.file_name().and_then(|n| n.to_str()) == Some(".writer") {
+            if parent.file_name().and_then(|n| n.to_str()) == Some(".inkra") {
                 return true;
             }
         }
@@ -539,7 +539,7 @@ pub fn start_watcher(
                         );
                         let _ = handle.emit_to(label.clone(), "fs:directory-changed", &payload);
                     } else {
-                        // `.writer/config` changes reload settings instead.
+                        // `.inkra/config` changes reload settings instead.
                         if is_config_file(path) {
                             wlog!("emit settings:changed {}", path.display());
                             let loader = state

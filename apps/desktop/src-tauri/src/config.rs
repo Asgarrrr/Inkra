@@ -307,7 +307,7 @@ pub(crate) struct WorkspaceSettingsLoader {
 
 impl WorkspaceSettingsLoader {
     pub(crate) fn read(&self, workspace_root: &Path) -> WorkspaceSettingsLayer {
-        let path = workspace_root.join(".writer").join("config");
+        let path = workspace_root.join(".inkra").join("config");
         let (raw, values) = if path.exists() {
             let raw = std::fs::read_to_string(&path).unwrap_or_default();
             let values = parse_config_with_defaults(&raw, Some(&self.defaults));
@@ -469,7 +469,7 @@ impl Settings {
         std::fs::remove_file(&prefs_path)
     }
 
-    /// Load workspace-level config from `{workspace_root}/.writer/config`.
+    /// Load workspace-level config from `{workspace_root}/.inkra/config`.
     #[cfg(test)]
     pub fn load_workspace(&mut self, workspace_root: &Path) {
         let layer = self.workspace_loader().read(workspace_root);
@@ -1023,9 +1023,9 @@ mod tests {
                 ConfigValue::String("Ghostty".into()),
             )
             .unwrap();
-        std::fs::create_dir_all(workspace.path().join(".writer")).unwrap();
+        std::fs::create_dir_all(workspace.path().join(".inkra")).unwrap();
         std::fs::write(
-            workspace.path().join(".writer/config"),
+            workspace.path().join(".inkra/config"),
             "workspace.default-terminal = OtherTerminal\n",
         )
         .unwrap();

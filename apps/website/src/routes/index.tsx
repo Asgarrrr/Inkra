@@ -41,7 +41,7 @@ function HomePage() {
           <nav className="site-nav">
             <a
               className="pill pill-ghost"
-              href="https://x.com/joelbqz"
+              href={__INKRA_RELEASES_URL__}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => capture("updates_opened")}

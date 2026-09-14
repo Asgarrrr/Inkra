@@ -21,7 +21,7 @@ Allow Writer to host or connect to Model Context Protocol (MCP) servers so the u
 
 ### Configuration
 
-- Add an `MCP Servers` settings page (or settings file at `~/.writer/mcp.json` for v1 simplicity).
+- Add an `MCP Servers` settings page (or settings file at `~/.inkra/mcp.json` for v1 simplicity).
 - Each server entry: name, transport (stdio | sse | http), command/url, env, optional workspace scope.
 - Reload servers when configuration changes.
 
@@ -47,7 +47,7 @@ Allow Writer to host or connect to Model Context Protocol (MCP) servers so the u
 - Use a small Rust MCP client crate (or implement the JSON-RPC protocol over stdio in `apps/desktop/src-tauri/src/mcp/`).
 - Expose Rust commands `mcp_list_servers`, `mcp_list_tools`, `mcp_invoke_tool`, `mcp_reload_config`.
 - Frontend gets a `useMcp` hook and a tools palette component.
-- Persist trust decisions per server in `~/.writer/mcp-trust.json`.
+- Persist trust decisions per server in `~/.inkra/mcp-trust.json`.
 
 ## Files Expected To Change
 

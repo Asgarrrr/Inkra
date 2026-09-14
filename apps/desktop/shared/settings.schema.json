@@ -149,7 +149,7 @@
       "category": "Theme",
       "$comment": "Valid values are populated at runtime from shared/themes/*.json plus the special \"custom\" sentinel; we intentionally don't enum-constrain the contract so adding a preset doesn't require a schema edit.",
       "type": "string",
-      "default": "Writer"
+      "default": "Inkra"
     },
     {
       "key": "theme.light.accent",
@@ -207,7 +207,7 @@
       "category": "Theme",
       "$comment": "Valid values are populated at runtime from shared/themes/*.json plus the special \"custom\" sentinel; we intentionally don't enum-constrain the contract so adding a preset doesn't require a schema edit.",
       "type": "string",
-      "default": "Writer"
+      "default": "Inkra"
     },
     {
       "key": "theme.dark.accent",
