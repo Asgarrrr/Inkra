@@ -1,5 +1,6 @@
 import { CommandGroup, CommandItem } from "cmdk";
 import { getFileName } from "@/lib/paths";
+import type { ContentSearchResult } from "@/types/fs";
 import { contentParentDir, contentRowValue, type ContentSection } from "./group-content-results";
 import { splitHighlightRanges } from "./highlight-ranges";
 
@@ -26,7 +27,7 @@ export function ContentResults({
   onSelect,
 }: {
   section: ContentSection;
-  onSelect: (path: string) => void;
+  onSelect: (result: ContentSearchResult) => void;
 }) {
   if (section.kind === "idle" || section.kind === "pending") return null;
 
@@ -60,7 +61,7 @@ export function ContentResults({
               <CommandItem
                 key={contentRowValue(result)}
                 value={contentRowValue(result)}
-                onSelect={() => onSelect(result.path)}
+                onSelect={() => onSelect(result)}
               >
                 <div className="flex min-w-0 items-baseline gap-2">
                   <span className="shrink-0 text-[11px] text-text-muted tabular-nums">

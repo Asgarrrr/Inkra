@@ -11,8 +11,8 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 Ce fichier est le document de reprise. Une session fraîche n'a besoin que de
 lui, de la spec, et de `docs/workflows/agent-review.md`.
 
-État : slices 0–4 commitées sur `feat/content-search` (5 commits), arbre propre.
-Reste la **slice 5** (saut à la ligne) puis la **slice 6** (flash bref).
+État : slices 0–5 commitées sur `feat/content-search` (6 commits), arbre propre.
+Reste la **slice 6** (flash bref).
 
 Lire dans cet ordre : « Conventions de travail » (la méthode, y compris les
 trois revues de fin de slice), « Décisions figées », « Écarts au plan initial »
@@ -54,7 +54,7 @@ par `export PATH="<repo>/node_modules/.bin:$PATH"` sinon le build meurt en 127.
 | 2     | Commande streamée, annulation, transport | ✅ fait (3 revues + remédiation) |
 | 3     | Palette                                  | ✅ fait (3 revues + remédiation) |
 | 4     | Porteur de cible + correctifs navigation | ✅ fait (3 revues + remédiation) |
-| 5     | Saut à la ligne                          | ⬜ à faire                       |
+| 5     | Saut à la ligne                          | ✅ fait (3 revues + remédiation) |
 | 6     | Flash bref                               | ⬜ à faire                       |
 
 ## Conventions de travail
@@ -1025,6 +1025,201 @@ région cible _avant_ de scroller, ou re-scroller après le commit de mesure.
 plusieurs milliers de lignes contenant images et tables, plus un fichier avec
 frontmatter, plus un résultat **dans le fichier déjà ouvert**. Confirmer aussi
 que la position de scroll sauvegardée survit au saut.
+
+### Résultat — livrée après trois revues et une passe de remédiation
+
+Les trois revues (blue team QA, red team, code review Editor/React) ont **toutes
+bloqué** le premier jet, et cette fois sur trois défauts **disjoints** : aucune
+n'a trouvé ce qu'une autre avait trouvé. Les trois portaient sur la même
+fonction neuve, `correctDrift`, par trois angles différents — identité du
+document, précondition non encodée, arguments non certifiés.
+
+Ce qui a atterri :
+
+- `link-navigation.ts` — `targetDocPos` convertit `kind:"line"` en
+  `doc.line(n).from`, `n` clampé à `[1, doc.lines]`.
+- `editor-scroll.ts` — `safeTopFor` extrait en fonction pure ; `jumpToPos`
+  parse la région cible, scrolle, écrit sa position d'arrivée (`[D-4]`), puis
+  corrige la dérive sous trois gardes.
+- `viewport-parse.ts` — `parseThrough(view, pos)`, point unique où une cible de
+  parse se dérive d'une position. Les deux constantes redeviennent privées.
+- `content-results.tsx` / `index.tsx` — la ligne de contenu route vers
+  `navigateToTarget(path, { kind:"line", line })`.
+
+Défauts corrigés :
+
+- **`correctDrift` s'exécutait contre un document qui n'était plus celui visé.**
+  Sa seule garde, `at !== landedAt`, protège l'identité du _scroller_, pas celle
+  du _document_. Un swap d'onglet ou un rechargement watcher entre le saut et la
+  passe de mesure laisse typiquement `scrollTop` intact — le navigateur ne
+  reclampe que si le document entrant est plus court — donc la garde passait, la
+  correction mesurait un `pos` périmé contre le nouveau document, et écrivait
+  `updateScrollPos` sur le chemin **sortant**. Sur la branche `reloaded` de
+  `use-prosemark-editor.ts`, rien ne répare : elle n'appelle pas
+  `applyPendingTarget`. Exactement la famille fermée en slice 4 au niveau du
+  rAF, rouverte une couche plus bas. `view.state.doc` est un `Text` immuable,
+  donc l'égalité de référence est le test exact ; elle est exigée dans `read`
+  **et** dans `write`, chacune séparément observable (CodeMirror lit toutes les
+  requêtes en attente avant d'en écrire une seule).
+- **Double compensation sur le chemin focalisé.** Le commentaire énonçait la
+  précondition — CM ne ré-ancre que si l'éditeur a le focus ou qu'un wheel/touch
+  date de moins de 100 ms — mais le code ne la testait jamais. Or `jumpToPos`
+  est aussi le chemin des ancres de heading, atteint depuis un clic _dans_
+  l'éditeur. L'ancrage de CM tourne **après** que nos requêtes se soient
+  drainées, sans voir notre écriture : les deux compensations s'additionnaient
+  et la cible atterrissait sous la zone sûre. `at !== landedAt` ne pouvait pas
+  l'attraper, CM bougeant le scroller _après_ la correction. La précondition est
+  maintenant une garde `view.hasFocus`.
+- **Les arguments de `forceParsing` n'étaient certifiés par rien.** Deux
+  mutations survivaient, dont l'**inversion du signe de l'overshoot** — qui fait
+  parser jusqu'à 2000 caractères _avant_ la cible et annule l'objet de la slice.
+  Cause racine : le fake déclarait `state.field: () => undefined`, donc
+  `ensureSyntaxTree` court-circuitait à `null` et `forceParsing` dispatchait par
+  sa branche d'**échec**. La sonde n'observait qu'« un dispatch quelconque a
+  précédé la première mesure » — ni qu'un parse avait eu lieu, ni quelle région,
+  ni quel budget. En production, avec un `Language.state` à jour, `forceParsing`
+  ne dispatche pas et l'assertion aurait été fausse. Le fake était complaisant
+  et son commentaire décrivait le contrat réel plutôt que ce qu'il modélisait.
+- **Deux règles d'ouverture d'onglet pour deux lignes de la même liste.** Le
+  câblage substituait `navigateToFile` à `openFile` pour les lignes de contenu.
+  Les deux ne coïncident que si l'onglet actif est de kind `file` ou `launcher` :
+  avec l'onglet Réglages actif, une ligne de contenu le remplaçait en place, une
+  ligne de fichier ouvrait à côté. Changement de sémantique que la slice ne
+  demandait pas. `navigateToTarget` ouvre désormais par `openFile`, neutre pour
+  `followLink` — vérifié dans le code, pas supposé : `EditorArea` rend les
+  panneaux non actifs en `pointer-events-none`, donc un clic de lien ne peut
+  venir que du panneau actif, dont l'onglet est de kind `file`.
+- Divers : bande morte d'un pixel sur la correction (`scrollTop` est
+  fractionnaire en HiDPI, l'égalité exacte n'arrive jamais — CM trace la même
+  bande) ; les trois clamps de `safeTopFor` ne tombaient sous aucun test, les
+  fakes les masquant ; deux fakes du même scroller avec deux contrats de clamp
+  différents ; redite de signature dans le commentaire de la palette.
+
+Écarts au plan :
+
+1. **`VIEWPORT_OVERSHOOT` n'est plus exporté ; `parseThrough` l'est.** Le
+   premier jet exportait deux constantes pour que `jumpToPos` re-dérive
+   l'expression « parser jusqu'à X + overshoot, sous budget », déjà écrite à
+   trois endroits. La constante portait aussi deux sens — « au-delà de
+   `viewport.to` » et « au-delà de la cible du saut » — pour la seule raison que
+   la valeur coïncide. Un point unique, testé, ferme les deux.
+2. **`editor-api.ts` gagne un accesseur `openFile`.** `link-navigation.ts`
+   n'atteint le store que par ce module ; importer `useEditorStore` directement
+   aurait ouvert un second chemin d'accès.
+3. **Un mutant de `safeTopFor` est refusé comme équivalent, pas fermé.**
+   Supprimer le plancher zéro de `max` ne change aucune sortie : quand
+   `scrollHeight < clientHeight`, `Math.min(scrollTop + delta, max)` est négatif
+   et le `Math.max(0, …)` englobant rend `0` dans les deux cas. Aucun test ne
+   doit prétendre le tuer.
+4. **`targetDocPos` ne normalise pas les non-entiers.** `Math.max(NaN, 1)` rend
+   `NaN` et traverse les deux clamps ; `doc.line(NaN)` lève un `TypeError` brut.
+   Inatteignable — tout producteur est un `u32` Rust. Le commentaire a été
+   restreint à ce qu'il couvre réellement plutôt que d'ajouter une branche que
+   rien dans ce lot ne peut atteindre ni tester.
+
+**Risques résiduels assumés :**
+
+- **La garde de focus n'est pas vérifiable au runtime.** `view.hasFocus` exige
+  `document.hasFocus()`, faux pour une fenêtre pilotée par WebDriver, et
+  `plugin:window|set_focus` est refusé par l'ACL de capacités de l'app. La
+  sortie anticipée de `correctDrift` n'est donc empruntée dans aucun scénario :
+  le chemin focalisé est prouvé atterrir correctement, pas prouvé atterrir _sans
+  correction_.
+- **`parseThrough` au site du saut n'a pas de filet runtime.** Le supprimer
+  laisse les 12 scénarios verts, parce que `correctDrift` re-vise et tourne
+  toujours dans le flux observable. Ce n'est pas du code mort : c'est la seule
+  compensation qui reste sur le chemin focalisé, où la correction est désormais
+  coupée — donc précisément le chemin que le runtime ne peut pas atteindre. Le
+  test unitaire épingle l'appel et ses arguments ; sa _nécessité_ à ce site
+  repose sur la lecture du source de CodeMirror.
+- La moitié « wheel/touch de moins de 100 ms » du prédicat d'ancrage de CM n'a
+  pas d'accesseur public : un saut non focalisé juste après une molette
+  double-compense encore.
+- `view.hasFocus` est relu à chaque planification, pas dans `read` : une vue qui
+  prend le focus entre la dernière planification et la mesure reçoit une
+  correction de trop.
+- `section-rail.tsx` scrolle toujours par `scrollPosToSafeTop` direct — ni parse
+  forcé, ni correction, ni ré-écriture (l'écart de ré-écriture était déjà acté
+  en slice 4). Or un clic sur le rail est exactement le saut lointain non
+  focalisé que la correction vise. `docs/editor.md` le nomme désormais comme
+  l'exception.
+- `EditorScrollContainer` n'a pas `overflow-anchor: none`. Si l'ancrage de scroll
+  de Chromium ré-ajuste `scrollTop` entre notre `scrollTo` et la lecture, la
+  garde `at !== landedAt` fait abandonner la correction dans le scénario même
+  pour lequel elle est écrite. Soupçonné, non observé.
+- Les tests unitaires ne modélisent pas la boucle de mesure de CM au-delà du
+  « lire tout, puis écrire tout » : ni son abandon à la cinquième itération, ni
+  son entrelacement avec `update`.
+
+**Vérification** (depuis `apps/desktop/`) :
+
+```
+../../node_modules/.bin/vp check   → exit 0 — 0 errors, 1 warning (e2e/wdio.conf.js, préexistant)
+../../node_modules/.bin/vp test    → exit 0 — 54 fichiers, 675 tests passés (664 avant remédiation, 656 avant la slice)
+```
+
+Auto-contrôle par mutation après remédiation, 20 mutations, **19 attrapées, 1
+refusée comme équivalente** (le plancher zéro ci-dessus). Les deux mutations que
+la blue team avait mesurées survivantes — overshoot supprimé, signe inversé —
+tombent désormais sur `parses past the position, not up to it`.
+
+**Vérification runtime — faite.** `apps/desktop/e2e/specs/content-search.spec.js`
+passe de 6 à **12 scénarios, 12 passés**, stables sur cinq exécutions
+consécutives (7,7–7,9 s) :
+
+```
+✓ jumps to the clicked line deep inside a document of images and tables
+✓ closes the palette once a content result is chosen
+✓ scrolls the document already on screen without reopening it
+✓ lands on the body line of a document with frontmatter
+✓ restores the landing position, not the one from before the jump
+✓ still follows an in-editor anchor link over an image-heavy region
+12 passing (7.8s)
+```
+
+Fixtures semées : un document de 3 247 lignes portant 360 images bloc et 360
+tables, son jumeau pour le cas ancre, et un document de 609 lignes derrière sept
+lignes de frontmatter. Les assertions portent sur la ligne marqueur rendue et sa
+distance à `scrollerTop + EDITOR_SAFE_SCROLL_MARGIN`, avec une tolérance dérivée
+à l'exécution de la hauteur de cette ligne — pas sur des pixels figés. Le cas
+frontmatter épingle `[RT-1]` de bout en bout : la ligne existe au rang **303 du
+corps**, pas 310 du fichier, et la tolérance d'une ligne et demie ne laisse pas
+passer un décalage de sept.
+
+Tableau rouge/vert, chaque mutation appliquée à l'arbre sain, rebuild, exécution,
+restauration :
+
+| Mutation                                         | Résultat       | Scénarios qui tombent                           |
+| ------------------------------------------------ | -------------- | ----------------------------------------------- |
+| `line: result.line_number` → `line: 1`           | attrapée       | saut profond, vue vivante, frontmatter, restore |
+| `correctDrift` retiré de `jumpToPos`             | attrapée       | saut profond                                    |
+| `scrollPos: file?.scrollPos ?? 0` → `0`          | attrapée       | restore                                         |
+| `close()` retiré du handler de contenu           | attrapée       | fermeture de la palette                         |
+| branche vue vivante de `navigateToTarget` coupée | attrapée       | vue vivante, lien d'ancre                       |
+| `parseThrough` retiré de `jumpToPos`             | **survivante** | aucun — voir risques résiduels                  |
+
+Trois pièges du harnais, tous producteurs de verdicts faux, corrigés dans la
+spec — à connaître avant de relancer :
+
+- **Un processus de l'app resté d'une session précédente** écoutait encore le
+  port du plugin WebDriver ; `tauri-webdriver` s'y attachait, donc la suite
+  exerçait le frontend **de la slice 4** en paraissant verte. Diagnostiqué par
+  une sentinelle au niveau module qui se relisait `MISSING`. Les exécutions
+  commencent maintenant par `pkill -f "target/release/desktop"`.
+- **WebKit suspend `requestAnimationFrame` quand la fenêtre est occultée.**
+  Chaque saut est ordonnancé dans un rAF (`applyPendingTarget`) : derrière une
+  autre fenêtre, l'éditeur ne scrolle jamais et rien ne lève. La spec lève la
+  fenêtre et prouve que les frames tournent, en `before` et en `beforeEach`.
+- **La spec de la slice 3 n'était pas rejouable** : son dernier scénario ferme
+  le workspace, et l'IPC brut `open_workspace` du `before` ne pose que l'état
+  Rust. Corrigé par un rechargement après l'IPC.
+- Après une passe de mutation, **rebuild** : restaurer les sources ne réinstalle
+  pas le bundle, et le dernier mutant reste en place.
+- `cargo tauri build` refuse désormais de construire — `tauri` 2.11.2 contre
+  `@tauri-apps/api` 2.10.1, que tauri-cli 2.11.4 traite en erreur. Construit avec
+  `--ignore-version-mismatches` plutôt que de toucher le lockfile ; le script
+  `build:app` de `e2e/package.json` échouera tant que les paquets npm ne sont pas
+  montés ou le drapeau ajouté.
 
 ## Slice 6 — Flash bref
 

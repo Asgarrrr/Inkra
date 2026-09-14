@@ -7,7 +7,7 @@ import {
   CommandItem,
   CommandList,
 } from "cmdk";
-import type { SearchResult } from "@/types/fs";
+import type { ContentSearchResult, SearchResult } from "@/types/fs";
 import {
   useCloseCommandPalette,
   useCommandPaletteIntent,
@@ -35,6 +35,7 @@ import { contentRowValue, contentSearchQuery, contentSection } from "./group-con
 import { useGlobalRecentFiles } from "@/hooks/use-global-recent-files";
 import { openStandaloneFile } from "@/hooks/use-open-drop";
 import { settingsKind } from "@/components/editor-area/page-kinds/settings";
+import { navigateToTarget } from "@/components/editor-area/link-navigation";
 import { getFileName, getFileStem, getParentDir } from "@/lib/paths";
 import * as tauri from "@/lib/tauri";
 import type { RecentFile } from "@/lib/tauri";
@@ -100,6 +101,13 @@ export function CommandPalette() {
 
   function handleSelect(path: string) {
     void (isCompactFileMode ? openStandaloneFile(path) : openFile(path));
+    close();
+  }
+
+  // Content rows only exist under a workspace, so the compact branch of
+  // `handleSelect` has nothing to answer here.
+  function handleSelectContentResult(result: ContentSearchResult) {
+    void navigateToTarget(result.path, { kind: "line", line: result.line_number });
     close();
   }
 
@@ -367,7 +375,7 @@ export function CommandPalette() {
               </CommandGroup>
             )}
 
-            <ContentResults section={section} onSelect={handleSelect} />
+            <ContentResults section={section} onSelect={handleSelectContentResult} />
           </>
         )}
       </CommandList>

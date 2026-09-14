@@ -43,7 +43,11 @@ When the scrollable element is an ancestor:
 
 Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/use-prosemark-editor.ts`.
 
-## A programmatic jump persists its own landing position
+## A programmatic jump parses, persists its landing position, and corrects its drift
+
+`jumpToPos` in `editor-scroll.ts` does three things in that order, and each one is there because the version without it was wrong. The parse and the drift correction are below; the landing position comes first because it is the one every scrolling caller shares.
+
+### It persists its own landing position
 
 The scroll listener in `use-prosemark-editor.ts` persists every `scroll` event through `updateScrollPos`, so the saved position of a file is whatever the listener last saw. That listener runs before anything scheduled on an animation frame — `scroll` events dispatch during "update the rendering" — and it cannot tell a user scroll from a programmatic one.
 
@@ -52,6 +56,20 @@ So any code that scrolls the ancestor container must go through `jumpScrollTop` 
 Do not try to suppress the listener instead. A value-matching suppression ("drop the next notification reporting exactly this `scrollTop`") is falsifiable by construction: scroll events are coalesced to at most one per frame reporting the final offset, so anything else moving the scroller in the same frame — including CM's own measure-loop anchoring — makes the awaited value never arrive, and the suppression stays armed across the next document swap.
 
 `behavior: "smooth"` is wrong here for a second reason beyond interruptibility: it produces one `updateScrollPos` write per animation frame for the whole animation.
+
+### It parses the target region before measuring it
+
+`lineBlockAt` reads the heightmap, and heights in a region the committed tree has not reached are estimates (see "Tree-derived StateFields go stale in unparsed regions"). Aiming at an estimate lands next to the line, not on it, because the block moves as its decorations materialise. So `jumpToPos` calls `parseThrough(view, pos)` first — the same entry point the viewport paths use, so the overshoot and the time budget are declared once.
+
+### It corrects the residual drift, but only on an unfocused view
+
+The parse runs under a time budget, so the heights can still settle after the scroll. `correctDrift` re-measures through `view.requestMeasure` and re-aims, at most twice — each correction moves the viewport, which can parse more and shift the heights again, so this is a bound, not a loop run to convergence. Three guards make it safe, and none of them is optional:
+
+- **Focus.** CodeMirror's own measure-loop anchoring (see the `scrollSnapshot` caveat below) runs on a focused view, captures its anchor before our writes and re-anchors after our requests have drained. Correcting on top of it double-compensates and overshoots the safe zone. So a focused view gets no correction at all — that path is CodeMirror's. The other half of CodeMirror's predicate, a wheel or touch event under 100ms old, has no public accessor and is therefore uncovered.
+- **Document identity.** `pos` is an offset into the document the jump measured. A tab swap or a watcher reload replaces that document without necessarily moving `scrollTop` — the browser only re-clamps when the incoming document is shorter — and the reload branch of `use-prosemark-editor.ts` never re-applies a pending target, so nothing downstream would repair a correction aimed at the outgoing document. `view.state.doc` is an immutable `Text`, so reference identity is the exact test; it is checked in the `read` and again in the `write`.
+- **A one-pixel dead band.** `scrollTop` is fractional on HiDPI and `scrollTo` rounds to the physical pixel, so exact equality between the wanted offset and the current one is never reached and both passes would always be spent. CodeMirror draws the same band (`diff > 1 || diff < -1`).
+
+`section-rail.tsx` still calls `scrollPosToSafeTop` directly, with neither the parse nor the correction.
 
 ## Block widgets: pick the decoration shape
 
@@ -147,13 +165,17 @@ view.dispatch({
 
 **Caveat: `scrollSnapshot` only affects `view.scrollDOM`, not ancestor scrollers** (per CM's own doc comment; both capture and apply use `scrollDOM.scrollTop`). In Writer, `.cm-scroller` doesn't scroll — the outer `EditorScrollContainer` does — so the snapshot is close to a no-op here. What actually keeps the viewport stable across height changes is CM's measure-loop scroll anchoring, which does adjust the discovered ancestor scroller — but only while the editor has focus or a wheel/touch event happened in the last 100ms. Corollary: widgets whose DOM changes height after insertion (async image decode, deferred renders) must keep `estimatedHeight` truthful and call `view.requestMeasure()` when their height settles, so the anchoring runs while the user is still interacting. `fold/image.ts` does this with a module-level measured-height cache keyed by image URL, reserving the cached height on the `<img>` until it (re)loads.
 
+Second corollary: that focus/wheel predicate is now encoded as a guard in `correctDrift` (`editor-scroll.ts`). A programmatic jump corrects its own drift only on an unfocused view, because on a focused one CodeMirror's anchoring already compensates and the two additions stack.
+
 ## Tree-derived StateFields go stale in unparsed regions
 
 `syntaxTree(state)` returns a frozen snapshot committed at the last `LanguageState` flip — not the live parse context. `ensureSyntaxTree` advances the live context and returns the fresh tree, but `syntaxTree(state)` keeps returning the old one until some later transaction commits a new `LanguageState` (`forceParsing` = `ensureSyntaxTree` + that dispatch). Lezer's background worker fills the tree in `requestIdleCallback` slices, which starve during continuous scrolling and are budget-capped on long documents.
 
 Consequence: any `StateField` that builds decorations by iterating `syntaxTree(state)` (list geometry, hide, fold) renders nothing for regions the committed tree hasn't reached — scrolled-into list items lose their hanging indent, markers show raw, etc. The fields' `syntaxTree(startState) !== syntaxTree(state)` rebuild guards only fire once a parse-commit transaction lands.
 
-`viewportParsePlugin` in `use-prosemark-editor.ts` closes the gap: on `viewportChanged` into a region where `syntaxTreeAvailable` is false, it defers a `forceParsing(view, viewport.to + overshoot)` (dispatching inside an update cycle is illegal, hence the `setTimeout`). Mount and tab-swap paths call `advanceViewportParse` for the same reason. Don't add per-field force-parses.
+`viewportParsePlugin` in `viewport-parse.ts` closes the gap: on `viewportChanged` into a region where `syntaxTreeAvailable` is false, it defers a parse through `viewport.to` (dispatching inside an update cycle is illegal, hence the `setTimeout`). Mount and tab-swap paths call `advanceViewportParse` for the same reason. Every one of them goes through `parseThrough(view, pos)`, which owns the overshoot and the time budget; don't re-derive `min(doc.length, pos + overshoot)` at a call site.
+
+Don't add per-field force-parses. The third caller of `parseThrough` is not one: `jumpToPos` parses because it is about to _measure_ heights in a region the viewport has never covered, not because a decoration field of its own renders stale. A jump path is the one legitimate reason to ask for a parse outside `viewport-parse.ts`.
 
 The parse-commit transaction that `forceParsing` dispatches changes neither the doc nor the viewport. So every tree-derived decoration source, StateField **and** ViewPlugin, must rebuild on the tree itself changing. Use `treeChanged(update)` from `prosemark-core/utils.ts`:
 
@@ -184,8 +206,9 @@ When a widget has a click → dispatch → mode-change cycle, mount a real `Edit
 - `table-decorations.ts` — canonical conditional replace ↔ source-line styling; uses `selectAllDecorationsOnSelectExtension` for click-to-select.
 - `prosemark-core/links.ts` — `linkUrlAt` / `rawUrlAt`, the one place that resolves a link destination from a document position.
 - `prosemark-core/imageSrc.ts` — `imageSrcResolverFacet` / `resolveImageSrc`; widgets resolve `<img src>` in `toDOM` (Writer provides the facet from `image-src-resolver.ts`), so no DOM observer rewrites images after insertion.
-- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed.
+- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed. `jumpToPos` also forces the parse of the target region before measuring it and corrects the residual drift afterwards (`correctDrift`, unfocused views only).
+- `viewport-parse.ts` — `parseThrough`, the one place a parse target is derived from a document position (overshoot + time budget), plus `advanceViewportParse` (mount and swap) and `viewportParsePlugin` (scroll).
 - `editor-view-registry.ts` — the live `EditorView` of each active pane, keyed by path. The one way non-CodeMirror code (link navigation, the palette) reaches a document that is already on screen. Written by `use-register-editor-view.ts` from `editor-pane.tsx`.
-- `pending-target.ts` (in `src/lib/`) — carries a jump target across the gap between `navigateToFile` and the new document's first render. `link-navigation.ts` is the only writer; `use-prosemark-editor.ts`'s `applyPendingTarget` and `use-register-editor-view.ts` are the only consumers.
+- `pending-target.ts` (in `src/lib/`) — carries a jump target across the gap between `openFile` and the new document's first render. `link-navigation.ts` is the only writer; `use-prosemark-editor.ts`'s `applyPendingTarget` and `use-register-editor-view.ts` are the only consumers.
 - `editor-extensions.ts` — `createEditorExtensions`, the one place the extension list is assembled. Pieces: `editor-search-extensions.ts` (hidden search panel, `EditorView.scrollHandler` for the ancestor-scroller case, Mod-f / Mod-g / Escape), `link-navigation.ts` (click-to-follow, `followLink`), `editor-clipboard.ts` (image + frontmatter paste), `editor-body-menu.ts` (right-click menu), `viewport-parse.ts`. `use-prosemark-editor.ts` mounts, swaps, and disposes the view, and owns the initial scroll of a document: restoring the saved position or consuming a pending target.
 - `node_modules/@prosemark/core/dist/main.js:30` — `selectionTouchesRange` semantics.

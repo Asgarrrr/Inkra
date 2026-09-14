@@ -1,4 +1,6 @@
 import { ok, strictEqual } from "node:assert/strict";
+import { Buffer } from "node:buffer";
+import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -7,6 +9,40 @@ import { fileURLToPath } from "node:url";
 const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), "../screenshots");
 const WORKSPACE = join(tmpdir(), "writer-e2e-content-search");
 const QUERY = "throughput";
+
+// Mirrors EDITOR_SAFE_SCROLL_MARGIN (editor-scroll-container.tsx): where
+// `scrollPosToSafeTop` puts the target line, measured from the scroller's top.
+const SAFE_MARGIN = 140;
+
+const BIG_FILE = "big-images-tables.md";
+const ANCHOR_FILE = "anchor-jump.md";
+const FRONTMATTER_FILE = "frontmatter-deep.md";
+const NEIGHBOUR_FILE = "accents.md";
+
+// One token per jump target, absent from every other file, so a row's line
+// number and the landed-on line both identify exactly one document line.
+const BIG_ALPHA = "zqdeepalpha";
+const BIG_BETA = "zqdeepbeta";
+const FRONT_MARKER = "zqfrontmark";
+const ANCHOR_MARKER = "zqanchormark";
+const ANCHOR_HEADING = "Deep anchor heading";
+const ANCHOR_SLUG = "deep-anchor-heading";
+const ANCHOR_LINK_TEXT = "go deep";
+const ANCHOR_FOCUS_LINE = "Click this line to put the caret in the editor.";
+
+const RICH_SECTIONS = 360;
+
+// A block image with a real intrinsic height: the heightmap estimates it as one
+// line until the region is parsed and the widget materialises, which is the
+// drift slice 5 exists to cancel. One shared URL keeps `imageHeightCache`
+// (fold/image.ts) to a single entry, so the estimates are reproducible.
+const IMAGE_MD = `![panel](data:image/svg+xml;base64,${Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#7f8ea3"/></svg>',
+).toString("base64")})`;
+
+/** Line numbers the content scan reports for each marker: 1-based and
+ *  body-relative, so the frontmatter document's are not its file lines. */
+const markerLine = {};
 
 /** `throughput` appears in every file and in no filename, so it exercises the
  *  content path only. `README.md` sits at the root (no parent directory to
@@ -41,6 +77,87 @@ function seedWorkspace() {
       `# Filler ${i}\n\nSome throughput mention number ${i}.\n`,
     );
   }
+
+  seedRichDocument(BIG_FILE, ["# Big document", ""], {
+    120: {
+      marker: BIG_BETA,
+      lines: [`The ${BIG_BETA} marker sits in the first third.`],
+    },
+    300: {
+      marker: BIG_ALPHA,
+      lines: [`The ${BIG_ALPHA} marker sits in the last third.`],
+    },
+  });
+  seedRichDocument(
+    ANCHOR_FILE,
+    [
+      "# Anchor jump",
+      "",
+      `Follow [${ANCHOR_LINK_TEXT}](#${ANCHOR_SLUG}) past the pictures.`,
+      "",
+      ANCHOR_FOCUS_LINE,
+      "",
+    ],
+    {
+      200: {
+        marker: ANCHOR_MARKER,
+        lines: [`## ${ANCHOR_HEADING}`, "", `The ${ANCHOR_MARKER} marker sits under it.`],
+      },
+    },
+  );
+  seedFrontmatterDocument();
+}
+
+/** Thousands of lines whose heights only settle once the region is parsed:
+ *  every section carries a block image and a table. */
+function seedRichDocument(name, head, inserts) {
+  const lines = [...head];
+  for (let i = 1; i <= RICH_SECTIONS; i++) {
+    lines.push(
+      `## Section ${i}`,
+      "",
+      IMAGE_MD,
+      "",
+      `| Metric ${i} | Value |`,
+      "| --- | --- |",
+      `| rows | ${i * 7} |`,
+      `| ratio | ${i % 13} |`,
+      "",
+    );
+    const insert = inserts[i];
+    if (!insert) continue;
+    for (const line of insert.lines) {
+      lines.push(line);
+      if (line.includes(insert.marker)) markerLine[insert.marker] = lines.length;
+    }
+    lines.push("");
+  }
+  writeFileSync(join(WORKSPACE, name), `${lines.join("\n")}\n`);
+}
+
+/** Seven frontmatter lines the editor never holds. A raw file line number
+ *  applied to this document lands seven lines too low — the [RT-1] failure. */
+function seedFrontmatterDocument() {
+  const frontmatter = [
+    "---",
+    "title: Frontmatter deep",
+    "author: e2e harness",
+    "tags:",
+    "  - alpha",
+    "  - beta",
+    "---",
+  ];
+  const body = ["# Frontmatter deep", ""];
+  for (let i = 1; i <= 600; i++) {
+    body.push(`Body paragraph ${i} of the frontmatter document.`);
+    if (i !== 300) continue;
+    body.push(`The ${FRONT_MARKER} marker sits here.`);
+    markerLine[FRONT_MARKER] = body.length;
+  }
+  writeFileSync(
+    join(WORKSPACE, FRONTMATTER_FILE),
+    `${frontmatter.join("\n")}\n${body.join("\n")}\n`,
+  );
 }
 
 async function pressKey(key, { meta = true, shift = false } = {}) {
@@ -104,6 +221,174 @@ async function contentRows() {
   });
 }
 
+/** Every jump is scheduled inside a `requestAnimationFrame`, and WebKit
+ *  suspends animation frames while the window is occluded — behind another
+ *  window the editor simply never scrolls and nothing reports an error. Bring
+ *  the app to the front, then prove frames are running before trusting a run. */
+async function activateAppWindow() {
+  // Raising the window races whatever the desktop is doing, so re-assert until
+  // the frame loop actually restarts rather than trusting one attempt.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new Promise((resolve) => {
+      execFile(
+        "osascript",
+        ["-e", 'tell application "System Events" to set frontmost of process "Writer" to true'],
+        () => resolve(),
+      );
+    });
+    if (await framesRun()) return;
+  }
+  ok(false, "the app window is occluded: animation frames are suspended, so no jump can run");
+}
+
+function framesRun() {
+  return browser.executeAsync((done) => {
+    let fired = false;
+    requestAnimationFrame(() => {
+      fired = true;
+      done(true);
+    });
+    setTimeout(() => {
+      if (!fired) done(false);
+    }, 2000);
+  });
+}
+
+/** Where the marker line sits relative to the landing band of the editor that
+ *  is on screen. Geometry only: the marker text is unique to one line of one
+ *  document, so "found" already pins the line number the jump used. */
+async function markerGeometry(marker) {
+  return browser.execute(
+    (needle, margin) => {
+      const pane = [...document.querySelectorAll("[data-pane]")].find(
+        (el) => getComputedStyle(el).visibility !== "hidden",
+      );
+      if (!pane) return { error: "no visible editor pane" };
+      const content = pane.querySelector(".cm-content");
+      if (!content) return { error: "no .cm-content in the visible pane" };
+
+      let scroller = content.parentElement;
+      while (scroller) {
+        const { overflowY } = getComputedStyle(scroller);
+        if (overflowY === "auto" || overflowY === "scroll") break;
+        scroller = scroller.parentElement;
+      }
+      if (!scroller) return { error: "no scroller above .cm-content" };
+
+      const box = scroller.getBoundingClientRect();
+      const lines = [...content.querySelectorAll(".cm-line")];
+      const hit = lines.find((el) => (el.textContent || "").includes(needle));
+      const rect = hit ? hit.getBoundingClientRect() : null;
+      return {
+        found: Boolean(hit),
+        scrollTop: scroller.scrollTop,
+        maxScrollTop: scroller.scrollHeight - scroller.clientHeight,
+        landingY: box.top + margin,
+        markerTop: rect ? rect.top : null,
+        markerHeight: rect ? rect.height : null,
+        onScreen: rect ? rect.bottom > box.top && rect.top < box.bottom : false,
+        firstRenderedLine: lines.length ? (lines[0].textContent || "").slice(0, 48) : null,
+      };
+    },
+    marker,
+    SAFE_MARGIN,
+  );
+}
+
+/** A line height of slack, so the assertion answers "which line landed" rather
+ *  than freezing pixels. The failures it has to catch are whole lines out: the
+ *  frontmatter shift is seven, the unparsed-height drift is hundreds. */
+function landingSlack(geometry) {
+  return Math.max(40, 1.5 * (geometry.markerHeight || 0));
+}
+
+function landed(geometry) {
+  return (
+    Boolean(geometry.found) &&
+    Math.abs(geometry.markerTop - geometry.landingY) <= landingSlack(geometry)
+  );
+}
+
+function describeGeometry(marker, geometry) {
+  return `${marker}: ${JSON.stringify(geometry)}`;
+}
+
+/** Poll until the jump settles: the forced parse, the image decodes it
+ *  unblocks, and the drift correction all land over several frames. */
+async function waitForLanding(marker) {
+  const settled = await pollLanding(marker);
+  if (landed(settled)) return settled;
+
+  // The desktop can push the window behind something while the jump is in
+  // flight; WebKit then suspends animation frames and the jump's own frame
+  // stays queued. Raise it and let that frame run — a jump that still does not
+  // land is a real failure, and the flag says which of the two happened.
+  if (await framesRun()) return { ...settled, framesRun: true };
+  await activateAppWindow();
+  return { ...(await pollLanding(marker)), resumedSuspendedFrames: true };
+}
+
+async function pollLanding(marker) {
+  let last = await markerGeometry(marker);
+  await browser
+    .waitUntil(
+      async () => {
+        last = await markerGeometry(marker);
+        return landed(last);
+      },
+      { timeout: 15_000, interval: 100 },
+    )
+    .catch(() => {});
+  return last;
+}
+
+async function clickPaletteRow(predicate, what) {
+  await browser.waitUntil(
+    async () => {
+      const values = await browser.execute(() =>
+        [...document.querySelectorAll("[cmdk-item]")].map((el) => el.getAttribute("data-value")),
+      );
+      return values.some((value) => predicate(value || ""));
+    },
+    { timeout: 25_000, timeoutMsg: `no palette row for ${what}` },
+  );
+
+  for (const row of await $$("[cmdk-item]")) {
+    const value = (await row.getAttribute("data-value")) || "";
+    if (!predicate(value)) continue;
+    await row.click();
+    return;
+  }
+  throw new Error(`the row for ${what} vanished before it could be clicked`);
+}
+
+/** Content rows carry `${path}:${line}`, so matching the suffix asserts the
+ *  scan reported that exact line — a shifted number never produces this row. */
+function contentRowFor(name, line) {
+  const suffix = `/${name}:${line}`.toLowerCase();
+  return (value) => value.toLowerCase().endsWith(suffix);
+}
+
+function fileRowFor(name) {
+  const suffix = `/${name}`.toLowerCase();
+  return (value) => value.toLowerCase().endsWith(suffix);
+}
+
+async function openContentResult(name, marker) {
+  await pressKey("p");
+  await $("[cmdk-input]").waitForExist({ timeout: 5_000 });
+  await typeQuery(marker);
+  await clickPaletteRow(contentRowFor(name, markerLine[marker]), `${name}:${markerLine[marker]}`);
+}
+
+async function openFileRow(name) {
+  await pressKey("p");
+  await $("[cmdk-input]").waitForExist({ timeout: 5_000 });
+  await typeQuery(name.replace(/\.md$/, ""));
+  await clickPaletteRow(fileRowFor(name), name);
+  await $("[cmdk-input]").waitForExist({ timeout: 5_000, reverse: true });
+}
+
 describe("Content search palette", function () {
   before(async function () {
     seedWorkspace();
@@ -113,12 +398,16 @@ describe("Content search palette", function () {
       .waitForExist({ timeout: 3_000 })
       .catch(() => false);
     if (!open) {
+      // The raw IPC is the Rust half only; the frontend store keeps no root.
+      // Startup restores the most recent workspace, which `open_workspace`
+      // has just written — so a reload is what actually opens it here.
       await browser.executeAsync((path, done) => {
         window.__TAURI_INTERNALS__
           .invoke("open_workspace", { path })
           .then(() => done(null))
           .catch((e) => done(e && e.message ? e.message : String(e)));
       }, WORKSPACE);
+      await browser.execute(() => window.location.reload());
       await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({
         timeout: 20_000,
       });
@@ -129,6 +418,15 @@ describe("Content search palette", function () {
         .then(() => done(null))
         .catch(() => done(null));
     });
+
+    await activateAppWindow();
+  });
+
+  // macOS can move the app behind the terminal that drives it at any point, and
+  // an occluded window stops running animation frames — so re-assert it here
+  // rather than once in `before`.
+  beforeEach(async function () {
+    await activateAppWindow();
   });
 
   it("never renders a blank list while a content scan is pending", async function () {
@@ -228,10 +526,144 @@ describe("Content search palette", function () {
     }
   });
 
+  it("jumps to the clicked line deep inside a document of images and tables", async function () {
+    ok(markerLine[BIG_ALPHA] > 2_000, `the target line must be deep, got ${markerLine[BIG_ALPHA]}`);
+
+    await openContentResult(BIG_FILE, BIG_ALPHA);
+
+    const geometry = await waitForLanding(BIG_ALPHA);
+    ok(
+      geometry.found,
+      `line ${markerLine[BIG_ALPHA]} never rendered — ${JSON.stringify(geometry)}`,
+    );
+    ok(geometry.onScreen, `the target line landed off screen — ${JSON.stringify(geometry)}`);
+    ok(
+      landed(geometry),
+      `expected the target line at the landing band — ${describeGeometry(BIG_ALPHA, geometry)}`,
+    );
+    ok(
+      geometry.scrollTop > 0 && geometry.scrollTop < geometry.maxScrollTop,
+      `the jump neither stayed at the top nor bottomed out — ${JSON.stringify(geometry)}`,
+    );
+
+    await browser.saveScreenshot(`${SHOTS}/content-search-line-jump.png`);
+  });
+
+  it("closes the palette once a content result is chosen", async function () {
+    await openContentResult(BIG_FILE, BIG_ALPHA);
+    await $("[cmdk-input]").waitForExist({ timeout: 5_000, reverse: true });
+    strictEqual(await $("[cmdk-input]").isExisting(), false, "the palette stayed open");
+  });
+
+  it("scrolls the document already on screen without reopening it", async function () {
+    const before = await markerGeometry(BIG_ALPHA);
+    ok(before.found, `expected ${BIG_FILE} still on screen — ${JSON.stringify(before)}`);
+
+    await openContentResult(BIG_FILE, BIG_BETA);
+
+    const geometry = await waitForLanding(BIG_BETA);
+    ok(geometry.found, `line ${markerLine[BIG_BETA]} never rendered — ${JSON.stringify(geometry)}`);
+    ok(
+      landed(geometry),
+      `expected the second target at the landing band — ${describeGeometry(BIG_BETA, geometry)}`,
+    );
+    ok(
+      geometry.scrollTop < before.scrollTop - 1_000,
+      `the live view never moved up to the earlier line — ${geometry.scrollTop} vs ${before.scrollTop}`,
+    );
+  });
+
+  it("lands on the body line of a document with frontmatter", async function () {
+    await openContentResult(FRONTMATTER_FILE, FRONT_MARKER);
+
+    const geometry = await waitForLanding(FRONT_MARKER);
+    ok(
+      geometry.found,
+      `body line ${markerLine[FRONT_MARKER]} never rendered — ${JSON.stringify(geometry)}`,
+    );
+    // Seven frontmatter lines are not in the editor's document: applying the
+    // file line number would land the marker roughly seven lines above the
+    // band, which this tolerance does not reach.
+    ok(
+      landed(geometry),
+      `expected the body line at the landing band — ${describeGeometry(FRONT_MARKER, geometry)}`,
+    );
+  });
+
+  it("restores the landing position, not the one from before the jump", async function () {
+    const landing = await markerGeometry(FRONT_MARKER);
+    ok(landing.found, `expected ${FRONTMATTER_FILE} still on screen — ${JSON.stringify(landing)}`);
+    ok(landing.scrollTop > 0, "the jump under test has to have scrolled somewhere");
+
+    await openFileRow(NEIGHBOUR_FILE);
+    await browser.waitUntil(async () => !(await markerGeometry(FRONT_MARKER)).found, {
+      timeout: 15_000,
+      timeoutMsg: "the editor never swapped to the neighbouring file",
+    });
+
+    await openFileRow(FRONTMATTER_FILE);
+    const restored = await waitForLanding(FRONT_MARKER);
+    ok(restored.found, `the marker never came back — ${JSON.stringify(restored)}`);
+    ok(
+      Math.abs(restored.scrollTop - landing.scrollTop) <= 2,
+      `restored ${restored.scrollTop}, expected the landing position ${landing.scrollTop}`,
+    );
+  });
+
+  it("still follows an in-editor anchor link over an image-heavy region", async function () {
+    await openFileRow(ANCHOR_FILE);
+    // A rendered link is a `Decoration.mark` (hide/index.ts): a class, no href
+    // attribute — the anchor is read back out of the document at the click.
+    const link = await $(`.cm-rendered-link*=${ANCHOR_LINK_TEXT}`);
+    await link.waitForExist({ timeout: 15_000 });
+
+    // Put the caret in the document first, the way a reader who is editing
+    // already has. `view.hasFocus` still reads false: `document.hasFocus()` is
+    // false for a window driven by WebDriver, so the branch of `jumpToPos` that
+    // stands down for a focused editor is not reachable from here.
+    await $(`.cm-line*=${ANCHOR_FOCUS_LINE}`).click();
+    await browser.execute(() => {
+      const content = document.querySelector(".cm-content");
+      if (content instanceof HTMLElement) content.focus();
+    });
+
+    // A rendered link with no `data-href` resolves through `posAtCoords`, and
+    // the driver's own click does not carry usable client coordinates here —
+    // it does not even move the focus. Dispatch the sequence with the
+    // coordinates read off the element.
+    const dispatched = await browser.execute((text) => {
+      const el = [...document.querySelectorAll(".cm-rendered-link")].find((node) =>
+        (node.textContent || "").includes(text),
+      );
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      const clientX = rect.left + rect.width / 2;
+      const clientY = rect.top + rect.height / 2;
+      for (const type of ["mousedown", "mouseup", "click"]) {
+        el.dispatchEvent(
+          new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0 }),
+        );
+      }
+      return true;
+    }, ANCHOR_LINK_TEXT);
+    ok(dispatched, "the rendered link disappeared before it could be clicked");
+
+    const geometry = await waitForLanding(ANCHOR_HEADING);
+    ok(geometry.found, `the anchor heading never rendered — ${JSON.stringify(geometry)}`);
+    ok(
+      landed(geometry),
+      `expected the heading at the landing band — ${describeGeometry(ANCHOR_HEADING, geometry)}`,
+    );
+    const marker = await markerGeometry(ANCHOR_MARKER);
+    ok(marker.onScreen, `the text under the heading is off screen — ${JSON.stringify(marker)}`);
+  });
+
   it("does not open the palette or claim zero matches without a workspace", async function () {
     // Close through the app's own command, not the raw IPC: `close_workspace`
     // is the Rust half and leaves the frontend store's `root` set, which is
     // what gates the shortcut.
+    await pressKey("p");
+    await $("[cmdk-input]").waitForExist({ timeout: 5_000 });
     await typeQuery("");
     const closeCommand = await $('[cmdk-item][data-value="close-workspace"]');
     await closeCommand.waitForExist({ timeout: 5_000 });

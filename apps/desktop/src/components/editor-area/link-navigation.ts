@@ -30,7 +30,10 @@ export function targetDocPos(doc: Text, target: PendingTarget): number | null {
     case "heading":
       return findHeadingBySlug(doc.toString(), target.slug)?.pos ?? null;
     case "line":
-      return null;
+      // `line` counts lines in the file on disk, which can have shrunk between
+      // the scan and the click. Clamping covers that one case; it does not make
+      // `doc.line` total, and every producer today is a Rust `u32`.
+      return doc.line(Math.min(Math.max(target.line, 1), doc.lines)).from;
     default: {
       const exhaustive: never = target;
       return exhaustive;
@@ -55,9 +58,12 @@ function scrollLiveView(view: EditorView, filePath: string, target: PendingTarge
   return true;
 }
 
-/** Go to `target` inside `path`. The file already on screen scrolls its live
- *  view: `navigateToFile` returns early on an identical path, so its editor
- *  never swaps and would never consume a pending target. */
+/** Go to `target` inside `path`. Opens through `openFile`, the rule the palette's
+ *  file rows already use, so two rows of the same list cannot open differently:
+ *  `navigateToFile` replaces a Settings tab in place where `openFile` opens
+ *  beside it. The file already on screen scrolls its live view instead —
+ *  `openFile` returns early on an identical path, so its editor never swaps and
+ *  would never consume a pending target. */
 export async function navigateToTarget(path: string, target: PendingTarget): Promise<void> {
   if (editorApi.getActiveFilePath() === path) {
     const view = getEditorView(path);
@@ -69,7 +75,7 @@ export async function navigateToTarget(path: string, target: PendingTarget): Pro
   }
 
   setPendingTarget(path, target);
-  await editorApi.navigateToFile(path);
+  await editorApi.openFile(path);
   // A failed load rolls the tab back, so nothing will consume the target.
   if (editorApi.getActiveFilePath() !== path) clearPendingTarget(path);
 }

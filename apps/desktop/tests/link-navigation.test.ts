@@ -40,10 +40,14 @@ import {
   consumePendingTarget,
   setPendingTarget,
 } from "../src/lib/pending-target";
-import { useEditorStore } from "../src/stores/editor-store";
+import { createSettingsTab, useEditorStore } from "../src/stores/editor-store";
 
 const mockedInvoke = vi.mocked(invoke);
 const mockedResolveLinkTarget = vi.mocked(resolveLinkTarget);
+
+vi.stubGlobal("getComputedStyle", (node: { overflowY?: string }) => ({
+  overflowY: node.overflowY ?? "visible",
+}));
 
 // `environment: "node"` has no layout, so `findOuterScroller` — which walks
 // `parentElement` reading computed styles — can never succeed. A parentless dom
@@ -56,6 +60,42 @@ function unscrollableView(doc: string): EditorView {
   } as unknown as EditorView;
 }
 
+const LINE_BLOCK_HEIGHT = 100;
+
+/** The scrollable counterpart: `findOuterScroller` walks `parentElement`
+ *  reading computed styles, so a view that can scroll needs both stubbed. Line
+ *  blocks sit at `pos * LINE_BLOCK_HEIGHT`, which makes the landing offset name
+ *  the document position the jump was aimed at. `state.field` and `dispatch`
+ *  exist only so the forced parse doesn't throw on the way through: with no
+ *  language field there is nothing to parse, and what it parses is pinned in
+ *  `viewport-parse.test.ts`. */
+function scrollableView(doc: string) {
+  const scroller = {
+    overflowY: "auto",
+    parentElement: null,
+    scrollTop: 0,
+    scrollHeight: 100_000,
+    clientHeight: 800,
+    getBoundingClientRect: () => ({ top: 0 }),
+    scrollTo: ({ top }: ScrollToOptions) => {
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      scroller.scrollTop = Math.max(0, Math.min(top ?? 0, max));
+    },
+  };
+  const view = {
+    dom: { parentElement: scroller },
+    hasFocus: false,
+    get documentTop() {
+      return -scroller.scrollTop;
+    },
+    state: { doc: Text.of(doc.split("\n")), field: () => undefined },
+    dispatch: () => {},
+    lineBlockAt: (pos: number) => ({ top: pos * LINE_BLOCK_HEIGHT }),
+    requestMeasure: () => {},
+  };
+  return { view: view as unknown as EditorView, scroller };
+}
+
 function readsReturning(contents: Record<string, string>) {
   mockedInvoke.mockImplementation((command, args) => {
     if (command !== "read_file") return Promise.resolve(undefined);
@@ -64,6 +104,19 @@ function readsReturning(contents: Record<string, string>) {
     if (content === undefined) return Promise.reject(new Error(`ENOENT: ${path}`));
     return Promise.resolve({ path, content, modified_at: 1 });
   });
+}
+
+function withSettingsTabActive() {
+  useEditorStore.setState({
+    tabs: [createSettingsTab("settings-tab")],
+    activeTabId: "settings-tab",
+    activeFilePath: null,
+    openFiles: new Map(),
+  });
+}
+
+function tabKinds() {
+  return useEditorStore.getState().tabs.map((tab) => tab.location.kind);
 }
 
 let registered: [string, EditorView] | null = null;
@@ -105,12 +158,29 @@ describe("targetDocPos", () => {
     expect(targetDocPos(doc, { kind: "heading", slug: "missing" })).toBeNull();
   });
 
-  test("a line target resolves to nothing until slice 5 converts it", () => {
-    // Pins the placeholder: handing `line` back would put a line number where a
-    // document offset is expected, which is what the conversion exists to avoid.
+  test("resolves a line target to the start of that line", () => {
     const doc = Text.of(["one", "two", "three", "four"]);
 
-    expect(targetDocPos(doc, { kind: "line", line: 3 })).toBeNull();
+    expect(targetDocPos(doc, { kind: "line", line: 3 })).toBe(8);
+  });
+
+  test("a line past the end of a document that shrank lands on its last line", () => {
+    const doc = Text.of(["one", "two", "three", "four"]);
+
+    expect(targetDocPos(doc, { kind: "line", line: 99 })).toBe(14);
+  });
+
+  test("a line at or below zero lands on the first line", () => {
+    const doc = Text.of(["one", "two", "three"]);
+
+    expect(targetDocPos(doc, { kind: "line", line: 0 })).toBe(0);
+    expect(targetDocPos(doc, { kind: "line", line: -3 })).toBe(0);
+  });
+
+  test("a single-line document answers its one line for any number", () => {
+    const doc = Text.of(["only"]);
+
+    expect(targetDocPos(doc, { kind: "line", line: 7 })).toBe(0);
   });
 });
 
@@ -156,6 +226,41 @@ describe("navigateToTarget", () => {
     await navigateToTarget("/a.md", { kind: "heading", slug: "intro" });
 
     expect(consumePendingTarget("/a.md")).toEqual({ kind: "heading", slug: "intro" });
+  });
+
+  test("a line target in the file on screen scrolls its live view", async () => {
+    readsReturning({ "/a.md": "one\ntwo\nthree\nfour\n" });
+    await useEditorStore.getState().openFile("/a.md");
+    const { view, scroller } = scrollableView("one\ntwo\nthree\nfour\n");
+    register("/a.md", view);
+
+    await navigateToTarget("/a.md", { kind: "line", line: 3 });
+    const atLine3 = scroller.scrollTop;
+    await navigateToTarget("/a.md", { kind: "line", line: 4 });
+
+    expect(atLine3).toBeGreaterThan(0);
+    // Lines 3 and 4 start at document positions 8 and 14; the safe-zone margin
+    // is common to both, so their distance is the block height times six.
+    expect(scroller.scrollTop - atLine3).toBe(6 * LINE_BLOCK_HEIGHT);
+    expect(consumePendingTarget("/a.md")).toBeUndefined();
+  });
+
+  test("opens a file the way the palette's file rows open one", async () => {
+    // Both kinds of row sit in the same list. `navigateToFile` would replace the
+    // Settings tab in place where `openFile` opens beside it, so a content row
+    // and a file row would answer the same click differently.
+    readsReturning({ "/a.md": "one\ntwo\nthree\n" });
+
+    withSettingsTabActive();
+    await useEditorStore.getState().openFile("/a.md");
+    const viaFileRow = tabKinds();
+
+    withSettingsTabActive();
+    await navigateToTarget("/a.md", { kind: "line", line: 2 });
+
+    expect(viaFileRow).toEqual(["settings", "file"]);
+    expect(tabKinds()).toEqual(viaFileRow);
+    expect(consumePendingTarget("/a.md")).toEqual({ kind: "line", line: 2 });
   });
 
   test("the file on screen but not yet mounted gets the target for its first mount", async () => {
