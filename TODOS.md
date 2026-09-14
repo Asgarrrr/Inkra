@@ -7,6 +7,7 @@
 
 ## In Progress
 
+- Remove Vite+ from the toolchain: [`SPECs/remove-vite-plus-spec.md`](SPECs/remove-vite-plus-spec.md) — four slices, each leaving the repo green: `vite-plus/test` → Vitest across 57 test files; both apps off the `@voidzero-dev/vite-plus-core` fork onto real Vite 8, which dissolves the `vite` override knot; Oxlint + Oxfmt → Biome at `indentStyle: space` / `lineWidth: 100`, measured to leave only 4 files reformatted; then hooks, task running, and removal. Decided up front: `.node-version` pins Node, and Biome's CSS and a11y findings are deferred rather than folded in.
 - Reveal-in-sidebar + residual external-watcher misses: [`SPECs/reveal-in-sidebar-and-external-watcher-spec.md`](SPECs/reveal-in-sidebar-and-external-watcher-spec.md) — keep the explicit tab-context-menu "Reveal in sidebar" action working, leave ordinary file opens from expanding the Everything tree, and characterize the remaining external-file-watcher miss cases through a logging + manual-repro pass before patching further.
 
 ## Done
