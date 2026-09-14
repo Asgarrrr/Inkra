@@ -47,7 +47,7 @@ dir between runs for deterministic settings.
 
 ```sh
 cd apps/desktop/e2e
-pnpm exec wdio run ./wdio.conf.js --spec ./specs/<your>.spec.js
+vp exec wdio run ./wdio.conf.js --spec ./specs/<your>.spec.js
 ```
 
 - Wait for `button[aria-label="Hide sidebar"]` to detect mount+restore. Do
