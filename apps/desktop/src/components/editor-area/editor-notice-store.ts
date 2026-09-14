@@ -8,23 +8,25 @@ interface EditorNoticeState {
   dismissNotice: () => void;
 }
 
-let dismissTimer: number | null = null;
+// Bare timer globals, not `window.*`: the store is reachable from logic that
+// runs under the test runner's `environment: "node"`.
+let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Transient, self-dismissing notices shown over the editor: unresolved anchor
  *  links, rejected pastes, and similar "that didn't happen, here's why" cases. */
 export const useEditorNoticeStore = create<EditorNoticeState>((set, get) => ({
   message: null,
   showNotice: (message) => {
-    if (dismissTimer !== null) window.clearTimeout(dismissTimer);
+    if (dismissTimer !== null) clearTimeout(dismissTimer);
     set({ message });
-    dismissTimer = window.setTimeout(() => {
+    dismissTimer = setTimeout(() => {
       dismissTimer = null;
       get().dismissNotice();
     }, DISMISS_AFTER_MS);
   },
   dismissNotice: () => {
     if (dismissTimer !== null) {
-      window.clearTimeout(dismissTimer);
+      clearTimeout(dismissTimer);
       dismissTimer = null;
     }
     set({ message: null });

@@ -47,7 +47,7 @@ export function editorBodyContextMenuExtension(
             },
             onOpenLink: hasLink
               ? () => {
-                  void followLink(linkHref, view, filePath);
+                  void followLink(linkHref, filePath);
                 }
               : undefined,
             onCopyLink: hasLink

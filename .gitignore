@@ -32,3 +32,6 @@ dist-ssr
 # Claude worktrees
 .claude/worktrees/
 .worktrees/
+
+# e2e run artifacts
+apps/desktop/e2e/screenshots/

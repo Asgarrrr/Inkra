@@ -1,0 +1,29 @@
+{
+  "events": [
+    {
+      "event": "matches",
+      "data": [
+        {
+          "path": "/ws/notes/a.md",
+          "relative_path": "notes/a.md",
+          "line_number": 3,
+          "line_content": "needle here",
+          "match_ranges": [[0, 6]],
+          "line_content_offset": 12,
+          "line_truncated": true,
+          "score": 4000500
+        }
+      ]
+    },
+    {
+      "event": "done",
+      "data": {
+        "total": 1,
+        "truncated": true,
+        "skipped_files": 2,
+        "outcome": "cancelled"
+      }
+    }
+  ],
+  "outcomes": ["completed", "cancelled", "aborted", "failed"]
+}

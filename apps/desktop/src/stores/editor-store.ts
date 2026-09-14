@@ -9,6 +9,7 @@ import {
 } from "@/lib/frontmatter";
 import { getDocumentStats, type DocumentStats } from "@/lib/document-stats";
 import { cancelSave, scheduleSave, registerSaveStore } from "@/lib/save";
+import { clearPendingTarget } from "@/lib/pending-target";
 import {
   locationBehavior,
   serializeLocation,
@@ -836,6 +837,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
 
     cancelSave(oldPath);
+    clearPendingTarget(oldPath);
     if (shouldScheduleSave) scheduleSave(newPath);
   },
 
@@ -866,6 +868,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
 
     cancelSave(path);
+    clearPendingTarget(path);
 
     if (get().tabs.length === 0) {
       get().ensureLauncherTab();
@@ -916,6 +919,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     for (const path of cancelledPaths) {
       cancelSave(path);
+      clearPendingTarget(path);
     }
 
     if (get().tabs.length === 0) {
@@ -959,6 +963,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           files.set(newPath, { ...file, path: newPath });
           if (file.isDirty) reschedulePaths.push(newPath);
           cancelSave(path);
+          clearPendingTarget(path);
         } else {
           files.set(path, file);
         }

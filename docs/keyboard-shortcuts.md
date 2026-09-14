@@ -6,23 +6,28 @@ Canonical shortcut reference for Writer.
 
 These shortcuts are handled by the global `useKeyboardShortcuts` hook and work regardless of editor focus.
 
-| Shortcut        | Action                        |
-| --------------- | ----------------------------- |
-| Cmd+P           | File search (command palette) |
-| Cmd+O           | Go to file                    |
-| Cmd+N           | Create new note               |
-| Cmd+T           | New tab                       |
-| Cmd+W           | Close current tab             |
-| Cmd+\\          | Toggle sidebar                |
-| Ctrl+Tab        | Next tab                      |
-| Ctrl+Shift+Tab  | Previous tab                  |
-| Cmd+1 ... Cmd+9 | Jump to Nth tab               |
-| Alt+ArrowLeft   | Navigate back                 |
-| Alt+ArrowRight  | Navigate forward              |
+| Shortcut        | Action                                       |
+| --------------- | -------------------------------------------- |
+| Cmd+P           | Search (command palette), needs a workspace  |
+| Cmd+Shift+P     | Search (the same palette), always            |
+| Cmd+Shift+F     | Search (the same palette), needs a workspace |
+| Cmd+O           | Go to file                                   |
+| Cmd+N           | Create new note                              |
+| Cmd+T           | New tab                                      |
+| Cmd+W           | Close current tab                            |
+| Cmd+\\          | Toggle sidebar                               |
+| Ctrl+Tab        | Next tab                                     |
+| Ctrl+Shift+Tab  | Previous tab                                 |
+| Cmd+1 ... Cmd+9 | Jump to Nth tab                              |
+| Alt+ArrowLeft   | Navigate back                                |
+| Alt+ArrowRight  | Navigate forward                             |
 
 In compact single-file windows, sidebar and tab-management shortcuts do not
 create hidden UI state: Cmd+\\, Cmd+T, Ctrl+Tab, Ctrl+Shift+Tab, and Cmd+1 ...
-Cmd+9 are ignored. Cmd+P, Cmd+O, Cmd+N, and history navigation still work.
+Cmd+9 are ignored. A compact window also has no workspace, so Cmd+P,
+Cmd+Shift+F, Cmd+O and Cmd+N do nothing there; Cmd+Shift+P is the shortcut that
+opens the palette, and it searches recent files only, never document content.
+History navigation still works.
 
 ## Menu Accelerators
 

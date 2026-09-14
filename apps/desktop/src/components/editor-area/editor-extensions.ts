@@ -22,6 +22,7 @@ import { htmlBlockDecorations, htmlBlockParserExtension } from "./html-block-dec
 import { imageSrcResolver } from "./image-src-resolver";
 import { linkNavigationExtension } from "./link-navigation";
 import { markdownFormatting } from "./markdown-formatting";
+import { matchFlashField } from "./match-flash";
 import { mathDecorations } from "./math-decorations";
 import { mermaidDecorations } from "./mermaid-decorations";
 import { tableDecorations } from "./table-decorations";
@@ -117,6 +118,7 @@ export function createEditorExtensions(
     mermaidDecorations(),
     mathDecorations(),
     headingDecorations,
+    matchFlashField,
     imageSrcResolver(getFilePath),
     wikiLinkExtension(getFilePath, isDisposed),
     markdownFormatting,

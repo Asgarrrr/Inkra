@@ -3,6 +3,7 @@ import type { DirEntry } from "@/types/fs";
 import type { RestoreWorkspaceResponse } from "@/lib/tauri";
 import * as tauri from "@/lib/tauri";
 import { getPreference, setPreference } from "@/lib/preferences";
+import { clearAllPendingTargets } from "@/lib/pending-target";
 import { saveSession, loadSession } from "@/lib/session";
 import { getEditorSessionSnapshot, useEditorStore } from "@/stores/editor-store";
 
@@ -114,6 +115,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     // Clear editor state before switching
+    clearAllPendingTargets();
     useEditorStore.setState({
       openFiles: new Map(),
       tabs: [],
@@ -162,6 +164,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     void saveSession(root, snapshot.tabs, snapshot.activeIndex);
     await tauri.closeWorkspace(root);
     if (get().root !== root) return;
+    clearAllPendingTargets();
     useEditorStore.setState({
       openFiles: new Map(),
       tabs: [],
@@ -185,6 +188,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   restoreFromBundle: async (bundle) => {
     // Clear editor state in case anything was hydrated by a parallel hook.
+    clearAllPendingTargets();
     useEditorStore.setState({
       openFiles: new Map(),
       tabs: [],

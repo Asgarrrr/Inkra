@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-14
+
+- Fix anchor links to a heading in the document you are already reading doing nothing. Clicking `[see](#setup)` now scrolls to that heading, and says so when the document has no such heading.
+- Fix an anchor link landing at the top of the document instead of at its heading when the target file's editor had not mounted yet — the first file of a session, or a file still loading.
+- Stop a jump to a heading overwriting the scroll position saved for the file, which made returning to that tab land in the wrong place.
+- Search inside your documents from the command palette. `Cmd+P` — or the new `Cmd+Shift+F`, which opens the same palette — now lists an **In documents** group under the usual commands and file names: the matching lines, highlighted, grouped by file, with their line numbers, ranked by relevance. Typing plain words looks for files containing all of them, close together; prefixing the query with `/` searches for that exact string instead. Content scanning starts at three characters, so jumping to a file by name stays as instant as before, and it reads the files on disk — a phrase you just typed is findable once the file is saved. Clicking a result opens the file and scrolls to the matched line — including when that file is already the one on screen — and the words that matched are highlighted there for a moment, so the eye lands on them rather than on the line. A file edited since the last scan still lands somewhere sensible: a line number past its new end goes to the last line instead of nowhere, and a highlight that would start past the end of a line that has since been shortened is dropped rather than painted over whatever is there now — one that merely runs off the end stops at it.
+
 ## 2026-09-10
 
 - Move writer.computer's analytics from a self-hosted Umami instance to PostHog, so the website and the app report to one place. The site records four things and nothing else: a page view, the Updates link, the GitHub link, and the macOS download (which carries the advertised version). Autocapture, session replay, surveys, heatmaps, and exception capture are all switched off, and visitors stay anonymous. The project key is supplied at build time, so a build made from a clone of this repo initializes nothing and sends nothing. One change to be aware of: PostHog stores a cookie where Umami did not. See [docs/website-analytics.md](./docs/website-analytics.md).

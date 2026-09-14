@@ -60,6 +60,16 @@ pub struct WorkspaceState {
     /// slot has been read. Drained by the frontend once startup hydration
     /// completes. Never read by `get_startup_state`.
     pub pending_open: Mutex<VecDeque<PendingOpenPayload>>,
+    /// Bumped on every new content search and on workspace teardown. A scan
+    /// compares it against the value it captured and stops as soon as they
+    /// differ, which is the only cancellation path that survives a destroyed
+    /// webview.
+    pub content_search_generation: AtomicU64,
+    /// Serializes content scans so at most one touches the disk. A waiter
+    /// polls `try_lock` and re-checks the generation between attempts, so a
+    /// superseded scan releases its blocking-pool thread instead of queuing
+    /// for the predecessor's full run.
+    pub content_search_lock: Mutex<()>,
     /// The single file hosted by this window when it runs in standalone
     /// compact mode (no workspace root). Used to dedupe repeat opens of the
     /// same file onto the existing window and as the target of the
@@ -102,6 +112,8 @@ impl Default for WorkspaceState {
             startup_open: Mutex::new(None),
             startup_open_taken: AtomicBool::new(false),
             pending_open: Mutex::new(VecDeque::new()),
+            content_search_generation: AtomicU64::new(0),
+            content_search_lock: Mutex::new(()),
             standalone_file: RwLock::new(None),
         }
     }
@@ -110,6 +122,8 @@ impl Default for WorkspaceState {
 impl WorkspaceState {
     fn reset_workspace_runtime(&self) -> WorkspaceRuntimeDrop {
         self.cancel_index.read().store(true, Ordering::SeqCst);
+        self.content_search_generation
+            .fetch_add(1, Ordering::SeqCst);
         *self.standalone_file.write() = None;
         let file_index = std::mem::take(&mut *self.file_index.write());
         self.file_index_revision.fetch_add(1, Ordering::SeqCst);
@@ -602,6 +616,19 @@ mod tests {
             Err(second)
         );
         assert_eq!(window_state.take_startup_open(), Some(first));
+    }
+
+    #[test]
+    fn workspace_reset_bumps_the_content_search_generation() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let state = WorkspaceState::default();
+        state.transition_to_workspace(root.clone());
+        let opened = state.content_search_generation.load(Ordering::SeqCst);
+
+        state.clear_workspace_if_current(&root).unwrap();
+
+        assert!(state.content_search_generation.load(Ordering::SeqCst) > opened);
     }
 
     #[test]

@@ -3,15 +3,15 @@ import { EditorView } from "@codemirror/view";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { history } from "@codemirror/commands";
 import { closeEditorSearch } from "./editor-search-store";
-import { findOuterScroller, scrollPosToSafeTop } from "./editor-scroll";
+import { findOuterScroller, jumpScrollTop, jumpToPos } from "./editor-scroll";
 import { createEditorExtensions } from "./editor-extensions";
-import { findHeadingBySlug } from "./link-navigation";
+import { resolveTarget } from "./link-navigation";
 import { advanceViewportParse } from "./viewport-parse";
 import { clampSelectionToHeadings } from "./heading-decorations";
 import * as editorApi from "@/hooks/editor-api";
 import { useReloadVersion } from "@/hooks/use-tabs";
 import { getFileName } from "@/lib/paths";
-import { consumePendingAnchor } from "@/lib/pending-anchor";
+import { consumePendingTarget } from "@/lib/pending-target";
 import { logTimeline, mark } from "@/lib/startup-metrics";
 import { showEditorNotice } from "./editor-notice-store";
 
@@ -38,16 +38,43 @@ function restoreCursorPosition(view: EditorView, cursorPos: number) {
   view.dispatch({ selection: { anchor: pos } });
 }
 
-function restoreScrollPosition(
-  scrollContainer: HTMLElement,
-  scrollPos: number,
-  isDisposed: () => boolean,
-) {
-  requestAnimationFrame(() => {
-    if (isDisposed()) return;
+/** The single point where a pending target is consumed, shared by the first
+ *  mount and the document swap: two consumers could fire on one navigation. */
+function applyPendingTarget({
+  view,
+  scrollContainer,
+  filePath,
+  scrollPos,
+  isCurrent,
+}: {
+  view: EditorView;
+  scrollContainer: HTMLElement;
+  filePath: string;
+  scrollPos: number;
+  /** False once the pane is gone *or* the document this was computed against
+   *  was replaced: `pos` is an offset into that document, and a watcher-driven
+   *  reload can land between scheduling the jump and its frame. */
+  isCurrent: () => boolean;
+}) {
+  const target = consumePendingTarget(filePath);
+  const resolved = target === undefined ? null : resolveTarget(view.state.doc, target);
 
+  if (resolved === null && target?.kind === "heading") {
+    // Runs before the scroll listener is attached on the mount path, so this
+    // jump would otherwise never be persisted at all.
+    jumpScrollTop(scrollContainer, filePath, 0);
+    showEditorNotice(`Heading "#${target.slug}" not found in ${getFileName(filePath)}`);
+    return;
+  }
+
+  // `EditorView`'s constructor already queued its own measure frame and
+  // `advanceViewportParse` commits synchronously, so by the time this callback
+  // runs `lineBlockAt` reads settled heights rather than estimates.
+  requestAnimationFrame(() => {
+    if (!isCurrent()) return;
     // Always apply the initial scroll so a new file can reset a reused container back to the top.
-    scrollContainer.scrollTo(0, Math.max(0, scrollPos));
+    if (resolved === null) jumpScrollTop(scrollContainer, filePath, scrollPos);
+    else jumpToPos(view, scrollContainer, filePath, resolved);
   });
 }
 
@@ -102,6 +129,7 @@ export function useProsemarkEditor(
     const currentPath = filePathRef.current;
     const file = editorApi.getOpenFile(currentPath);
     const initialContent = file?.content ?? "";
+    const currentVersion = file?.reloadVersion ?? 0;
 
     const view = new EditorView({
       parent: el,
@@ -117,7 +145,7 @@ export function useProsemarkEditor(
 
     viewRef.current = view;
     prevPathRef.current = currentPath;
-    prevReloadVersionRef.current = file?.reloadVersion ?? 0;
+    prevReloadVersionRef.current = currentVersion;
     onViewChangeRef.current?.(view);
 
     mark("editor-ready");
@@ -130,7 +158,16 @@ export function useProsemarkEditor(
 
     const scrollContainer = resolveScrollContainer(el, getScrollContainerRef.current);
     if (scrollContainer) {
-      restoreScrollPosition(scrollContainer, file?.scrollPos ?? 0, () => disposedRef.current);
+      applyPendingTarget({
+        view,
+        scrollContainer,
+        filePath: currentPath,
+        scrollPos: file?.scrollPos ?? 0,
+        isCurrent: () =>
+          !disposedRef.current &&
+          prevPathRef.current === currentPath &&
+          prevReloadVersionRef.current === currentVersion,
+      });
 
       const handleScroll = () => {
         editorApi.updateScrollPos(filePathRef.current, scrollContainer.scrollTop);
@@ -189,21 +226,16 @@ export function useProsemarkEditor(
         getScrollContainerRef.current,
       );
       if (scrollContainer) {
-        const pendingAnchor = consumePendingAnchor(filePath);
-        if (pendingAnchor !== undefined) {
-          const heading = findHeadingBySlug(content, pendingAnchor);
-          if (heading) {
-            requestAnimationFrame(() => {
-              if (disposedRef.current) return;
-              scrollPosToSafeTop(view, scrollContainer, heading.pos, "auto");
-            });
-          } else {
-            scrollContainer.scrollTo({ top: 0, behavior: "auto" });
-            showEditorNotice(`Heading "#${pendingAnchor}" not found in ${getFileName(filePath)}`);
-          }
-        } else {
-          restoreScrollPosition(scrollContainer, file?.scrollPos ?? 0, () => disposedRef.current);
-        }
+        applyPendingTarget({
+          view,
+          scrollContainer,
+          filePath,
+          scrollPos: file?.scrollPos ?? 0,
+          isCurrent: () =>
+            !disposedRef.current &&
+            prevPathRef.current === filePath &&
+            prevReloadVersionRef.current === reloadVersion,
+        });
       }
     }
 

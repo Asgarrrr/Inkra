@@ -49,6 +49,10 @@ export function navigateToFile(path: string) {
   return useEditorStore.getState().navigateToFile(path);
 }
 
+export function openFile(path: string) {
+  return useEditorStore.getState().openFile(path);
+}
+
 export function renameOpenFile(oldPath: string, newPath: string) {
   useEditorStore.getState().renameOpenFile(oldPath, newPath);
 }

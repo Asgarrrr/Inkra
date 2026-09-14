@@ -1,18 +1,25 @@
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { forceParsing, syntaxTreeAvailable } from "@codemirror/language";
 
-const VIEWPORT_OVERSHOOT = 2000;
-const VIEWPORT_PARSE_BUDGET_MS = 50;
+const PARSE_OVERSHOOT = 2000;
+const PARSE_BUDGET_MS = 50;
 const IDLE_PARSE_BUDGET_MS = 50;
 const IDLE_PARSE_TIMEOUT_MS = 2000;
+
+function parseTarget(view: EditorView, pos: number): number {
+  return Math.min(view.state.doc.length, pos + PARSE_OVERSHOOT);
+}
+
+/** The one place a parse target is derived from a position. */
+export function parseThrough(view: EditorView, pos: number) {
+  forceParsing(view, parseTarget(view, pos), PARSE_BUDGET_MS);
+}
 
 /** Parse through the current viewport (plus overshoot) synchronously, then
  *  finish the document in an idle slice. Called on mount and tab swap so
  *  tree-derived decorations don't render the first screen stale. */
 export function advanceViewportParse(view: EditorView, isDisposed: () => boolean) {
-  const viewport = view.viewport;
-  const target = Math.min(view.state.doc.length, viewport.to + VIEWPORT_OVERSHOOT);
-  forceParsing(view, target, VIEWPORT_PARSE_BUDGET_MS);
+  parseThrough(view, view.viewport.to);
 
   if ("requestIdleCallback" in window) {
     window.requestIdleCallback(
@@ -42,15 +49,13 @@ export const viewportParsePlugin = ViewPlugin.fromClass(
     update(update: ViewUpdate) {
       if (!update.viewportChanged || this.timeout >= 0) return;
       const view = update.view;
-      const target = Math.min(view.state.doc.length, view.viewport.to + VIEWPORT_OVERSHOOT);
-      if (syntaxTreeAvailable(view.state, target)) return;
+      if (syntaxTreeAvailable(view.state, parseTarget(view, view.viewport.to))) return;
       // Defer: dispatching (which forceParsing does) is illegal inside an
       // update cycle.
       this.timeout = window.setTimeout(() => {
         this.timeout = -1;
-        const upto = Math.min(view.state.doc.length, view.viewport.to + VIEWPORT_OVERSHOOT);
-        if (!syntaxTreeAvailable(view.state, upto)) {
-          forceParsing(view, upto, VIEWPORT_PARSE_BUDGET_MS);
+        if (!syntaxTreeAvailable(view.state, parseTarget(view, view.viewport.to))) {
+          parseThrough(view, view.viewport.to);
         }
       }, 0);
     }
