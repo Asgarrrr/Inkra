@@ -57,9 +57,8 @@ const expiries = new WeakMap<EditorView, ReturnType<typeof setTimeout>>();
 // Not in the field's `update`, which stays a pure function of its transaction.
 let flashSerial = 0;
 
-/** Flash `ranges` in `view`, replacing whatever it was showing. An empty
- *  `ranges` is how a flash goes out early. Needs no destroyed-view guard:
- *  `update` on a destroyed view stores the state and returns. */
+/** An empty `ranges` is how a flash goes out early. Needs no destroyed-view
+ *  guard: `update` on a destroyed view stores the state and returns. */
 export function flashMatchRanges(view: EditorView, ranges: readonly FlashRange[]): void {
   const pending = expiries.get(view);
   if (pending !== undefined) clearTimeout(pending);

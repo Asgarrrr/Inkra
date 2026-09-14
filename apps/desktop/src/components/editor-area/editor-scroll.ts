@@ -81,8 +81,7 @@ export function jumpToPos(
   correctDrift(view, scroller, filePath, pos, landedAt);
 }
 
-/** Re-aim once the measure loop has run, for the heights the forced parse could
- *  not settle inside its budget. */
+/** For the heights the forced parse could not settle inside its budget. */
 function correctDrift(
   view: EditorView,
   scroller: HTMLElement,

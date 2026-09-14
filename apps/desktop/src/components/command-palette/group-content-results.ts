@@ -7,8 +7,8 @@ import type { ContentSearchResult } from "@/types/fs";
  *  disk, so every `Cmd+P` would cost a workspace scan without a floor. */
 export const CONTENT_SEARCH_MIN_QUERY_LENGTH = 3;
 
-/** The single place the threshold is applied. `""` keeps the hook idle. The
- *  `/` grep prefix counts as typed — Rust parses it. */
+/** The single place the threshold is applied. The `/` grep prefix counts as
+ *  typed — Rust parses it. */
 export function contentSearchQuery(search: string): string {
   const trimmed = search.trim();
   return trimmed.length >= CONTENT_SEARCH_MIN_QUERY_LENGTH ? trimmed : "";
@@ -26,9 +26,8 @@ export function contentRowValue(result: ContentSearchResult): string {
   return `${result.path}:${result.line_number}`;
 }
 
-/** Where opening a result takes the editor. A row's ranges are relative to its
- *  snippet, which may be a window cut out of the line; the editor holds the
- *  whole line, so the window offset is applied here. */
+/** A row's ranges are relative to its snippet, which may be a window cut out of
+ *  the line; the editor holds the whole line, so the offset is applied here. */
 export function contentResultTarget(result: ContentSearchResult): PendingTarget {
   return {
     kind: "line",

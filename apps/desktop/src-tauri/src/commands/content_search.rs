@@ -69,8 +69,7 @@ pub struct ContentSearchStats {
     pub outcome: ContentSearchOutcome,
 }
 
-/// Why the scan stopped. `Completed` also covers stopping on `total_cap`,
-/// which is reported by `truncated`.
+/// `Completed` also covers stopping on `total_cap`, reported by `truncated`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentSearchOutcome {
@@ -91,13 +90,13 @@ const HIT_WEIGHT: u32 = 1_000;
 const MAX_SCORED_HITS: u32 = 900;
 const STEM_BONUS: u32 = 500;
 
-/// Longest `line_content` emitted, in codepoints. Without it a single match on
-/// a multi-megabyte line ships the whole line over the IPC channel.
+/// In codepoints. Without it a single match on a multi-megabyte line ships the
+/// whole line over the IPC channel.
 pub const MAX_SNIPPET_CHARS: usize = 400;
 /// Codepoints of context kept before the first match inside the window.
 const SNIPPET_LEAD_CHARS: usize = 40;
-/// Ranges collected per line. A pathological line can match hundreds of
-/// thousands of times; the extra ranges fall outside the window anyway.
+/// A pathological line can match hundreds of thousands of times; the extra
+/// ranges fall outside the window anyway.
 pub const MAX_RANGES_PER_LINE: usize = 50;
 
 /// `/` switches to literal mode and the remainder stays a single token.
@@ -237,8 +236,7 @@ fn min_line_span(hits: &[(u32, usize)], token_count: usize) -> Option<u32> {
     best
 }
 
-/// Merge overlapping or adjacent ranges so the frontend renders flat,
-/// non-nested spans.
+/// So the frontend renders flat, non-nested spans.
 fn merge_ranges(mut ranges: Vec<(u32, u32)>) -> Vec<(u32, u32)> {
     ranges.sort_unstable();
     let mut merged: Vec<(u32, u32)> = Vec::with_capacity(ranges.len());
@@ -290,9 +288,7 @@ struct SnippetWindow {
     offset: u32,
 }
 
-/// Emit a window of the line around its first match instead of the whole line,
-/// rebasing the ranges into window coordinates. Returns `None` when the line
-/// already fits.
+/// Ranges come back in window coordinates. `None` when the line already fits.
 fn snippet_window(line: &str, ranges: &[(u32, u32)]) -> Option<SnippetWindow> {
     let char_len = line.chars().count();
     if char_len <= MAX_SNIPPET_CHARS {

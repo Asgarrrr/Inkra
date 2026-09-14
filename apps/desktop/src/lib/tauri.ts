@@ -213,8 +213,7 @@ export function fuzzySearch(query: string, limit?: number): Promise<SearchResult
   return invoke("fuzzy_search", { query, limit });
 }
 
-/** Streamed content scan. Matches arrive in batches; `done` is the terminal
- *  signal and the only reliable source of the terminal state. */
+/** `done` is the only reliable source of the terminal state. */
 export type ContentSearchEvent =
   | { event: "matches"; data: ContentSearchResult[] }
   | { event: "done"; data: ContentSearchStats };
@@ -228,9 +227,8 @@ export function searchWorkspaceContent(
   return invoke("search_workspace_content", { query, onEvent });
 }
 
-/** Stop this window's in-flight scan. The generation bump is the only stop
- *  signal that survives a destroyed webview, so an abandoned search has to say
- *  so instead of running the workspace out. */
+/** The generation bump is the only stop signal that survives a destroyed
+ *  webview, so an abandoned search has to say so rather than be dropped. */
 export function cancelWorkspaceContentSearch(): Promise<void> {
   return invoke("cancel_workspace_content_search");
 }

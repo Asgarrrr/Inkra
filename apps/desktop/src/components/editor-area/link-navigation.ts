@@ -46,9 +46,9 @@ export function resolveTarget(doc: Text, target: PendingTarget): JumpTarget | nu
   }
 }
 
-/** Codepoint offsets into `line` to document ranges, which CodeMirror counts in
- *  UTF-16 units — an accent shifts by one, an emoji by two. One pass, because
- *  the line behind a windowed snippet can be megabytes long. */
+/** CodeMirror counts document offsets in UTF-16 units, the scan in codepoints —
+ *  an accent shifts by one, an emoji by two. One pass, because the line behind
+ *  a windowed snippet can be megabytes long. */
 function lineFlashRanges(
   line: Line,
   ranges: readonly (readonly [number, number])[],
@@ -83,9 +83,8 @@ function lineFlashRanges(
   return flash;
 }
 
-/** Scrolls `view` to `target`, or reports false when it could not: a destroyed
- *  view stays registered until its pane's cleanup runs, and its detached dom
- *  has no scroller. */
+/** False when it could not: a destroyed view stays registered until its pane's
+ *  cleanup runs, and its detached dom has no scroller. */
 function scrollLiveView(view: EditorView, filePath: string, target: PendingTarget): boolean {
   const resolved = resolveTarget(view.state.doc, target);
   if (resolved === null) {
