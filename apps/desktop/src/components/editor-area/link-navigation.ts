@@ -1,38 +1,92 @@
 import { EditorView } from "@codemirror/view";
-import { type Extension, Prec } from "@codemirror/state";
+import { type Extension, Prec, type Text } from "@codemirror/state";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import * as editorApi from "@/hooks/editor-api";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
 import { buildSlugIndex, parseDocumentHeadings } from "@/hooks/use-document-headings";
 import type { DocumentHeading } from "@/hooks/use-document-headings";
 import { resolveLinkTarget } from "@/lib/paths";
-import { setPendingAnchor } from "@/lib/pending-anchor";
+import {
+  clearPendingTarget,
+  consumePendingTarget,
+  type PendingTarget,
+  setPendingTarget,
+} from "@/lib/pending-target";
 import { linkUrlAt, rawUrlAt } from "@/lib/prosemark-core/links";
 import * as tauri from "@/lib/tauri";
-import { findOuterScroller, scrollPosToSafeTop } from "./editor-scroll";
+import { findOuterScroller, jumpToPos } from "./editor-scroll";
+import { getEditorView } from "./editor-view-registry";
 import { showEditorNotice } from "./editor-notice-store";
 
-export function findHeadingBySlug(content: string, slug: string): DocumentHeading | undefined {
+function findHeadingBySlug(content: string, slug: string): DocumentHeading | undefined {
   return buildSlugIndex(parseDocumentHeadings(content, { maxDepth: 6, slugDepth: 6 })).get(slug);
 }
 
-function scrollSameDocAnchor(view: EditorView, filePath: string, anchor: string) {
-  const file = editorApi.getOpenFile(filePath);
-  const content = file?.content ?? view.state.doc.toString();
-  const heading = findHeadingBySlug(content, anchor);
-  if (!heading) {
-    showEditorNotice(`Heading "#${anchor}" not found in this document`);
-    return;
+/** The only place a target kind is decoded. Takes the document rather than its
+ *  text: a line target resolves through `doc.line`, and re-deriving line starts
+ *  from a string would have to mirror CodeMirror's `DefaultSplit` exactly. */
+export function targetDocPos(doc: Text, target: PendingTarget): number | null {
+  switch (target.kind) {
+    case "heading":
+      return findHeadingBySlug(doc.toString(), target.slug)?.pos ?? null;
+    case "line":
+      return null;
+    default: {
+      const exhaustive: never = target;
+      return exhaustive;
+    }
   }
-  const scroller = findOuterScroller(view.dom);
-  if (!scroller) return;
-  scrollPosToSafeTop(view, scroller, heading.pos, "smooth");
 }
 
-/** Navigate to `href` as written in the document: same-document anchors
- *  scroll, workspace files open in the tab (with a pending anchor), external
- *  URLs and other paths hand off to the OS. */
-export async function followLink(href: string | null, view: EditorView, filePath: string) {
+/** Scrolls `view` to `target`, or reports false when it could not: a destroyed
+ *  view stays registered until its pane's cleanup runs, and its detached dom
+ *  has no scroller. */
+function scrollLiveView(view: EditorView, filePath: string, target: PendingTarget): boolean {
+  const pos = targetDocPos(view.state.doc, target);
+  if (pos === null) {
+    if (target.kind === "heading") {
+      showEditorNotice(`Heading "#${target.slug}" not found in this document`);
+    }
+    return true;
+  }
+  const scroller = findOuterScroller(view.dom);
+  if (!scroller) return false;
+  jumpToPos(view, scroller, filePath, pos);
+  return true;
+}
+
+/** Go to `target` inside `path`. The file already on screen scrolls its live
+ *  view: `navigateToFile` returns early on an identical path, so its editor
+ *  never swaps and would never consume a pending target. */
+export async function navigateToTarget(path: string, target: PendingTarget): Promise<void> {
+  if (editorApi.getActiveFilePath() === path) {
+    const view = getEditorView(path);
+    if (view && scrollLiveView(view, path, target)) return;
+    // No usable view: the pane is still loading, or its view was destroyed a
+    // frame ago. Whichever mounts next consumes the target.
+    setPendingTarget(path, target);
+    return;
+  }
+
+  setPendingTarget(path, target);
+  await editorApi.navigateToFile(path);
+  // A failed load rolls the tab back, so nothing will consume the target.
+  if (editorApi.getActiveFilePath() !== path) clearPendingTarget(path);
+}
+
+/** Apply a target left behind for `path` by a caller that ran before this view
+ *  registered. `activeFilePath` flips synchronously inside the store's `set`
+ *  while registration is a passive effect, and a pane already mounted on that
+ *  path neither mounts nor swaps, so nothing else would consume it. */
+export function applyRegisteredViewTarget(path: string, view: EditorView): void {
+  const target = consumePendingTarget(path);
+  if (target !== undefined && !scrollLiveView(view, path, target)) setPendingTarget(path, target);
+}
+
+/** Navigate to `href` as written in the document: anchors go through
+ *  `navigateToTarget`, plain workspace files open in the tab, external URLs
+ *  and other paths hand off to the OS. */
+export async function followLink(href: string | null, filePath: string) {
   if (!href) return;
 
   const target = await resolveLinkTarget(href, filePath, getWorkspaceRoot(), (path) =>
@@ -41,16 +95,15 @@ export async function followLink(href: string | null, view: EditorView, filePath
   if (!target) return;
 
   if (target.kind === "same-doc-anchor") {
-    scrollSameDocAnchor(view, filePath, target.anchor);
+    await navigateToTarget(filePath, { kind: "heading", slug: target.anchor });
     return;
   }
 
   if (target.kind === "internal") {
-    if (target.anchor && target.path === filePath) {
-      scrollSameDocAnchor(view, filePath, target.anchor);
+    if (target.anchor) {
+      await navigateToTarget(target.path, { kind: "heading", slug: target.anchor });
       return;
     }
-    if (target.anchor) setPendingAnchor(target.path, target.anchor);
     await editorApi.navigateToFile(target.path);
     return;
   }
@@ -112,7 +165,7 @@ export function linkNavigationExtension(
         if (href === null) return false;
         event.preventDefault();
         event.stopPropagation();
-        void followLink(href, view, getFilePath()).catch((error) => {
+        void followLink(href, getFilePath()).catch((error) => {
           if (!isDisposed()) console.error("[editor] Failed to open link:", error);
         });
         return true;

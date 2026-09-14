@@ -43,6 +43,16 @@ When the scrollable element is an ancestor:
 
 Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/use-prosemark-editor.ts`.
 
+## A programmatic jump persists its own landing position
+
+The scroll listener in `use-prosemark-editor.ts` persists every `scroll` event through `updateScrollPos`, so the saved position of a file is whatever the listener last saw. That listener runs before anything scheduled on an animation frame — `scroll` events dispatch during "update the rendering" — and it cannot tell a user scroll from a programmatic one.
+
+So any code that scrolls the ancestor container must go through `jumpScrollTop` / `jumpToPos` in `editor-scroll.ts`, which scroll with `behavior: "auto"`, read `scrollTop` back from the container, and write that value through `updateScrollPos` themselves. This corrects whatever the listener persisted in between — a position clamped against the outgoing document on a swap, or an intermediate frame — and reading back also covers clamping and sub-pixel rounding. `updateScrollPos` bails on an equal value, so the jump's own `scroll` event is then a no-op.
+
+Do not try to suppress the listener instead. A value-matching suppression ("drop the next notification reporting exactly this `scrollTop`") is falsifiable by construction: scroll events are coalesced to at most one per frame reporting the final offset, so anything else moving the scroller in the same frame — including CM's own measure-loop anchoring — makes the awaited value never arrive, and the suppression stays armed across the next document swap.
+
+`behavior: "smooth"` is wrong here for a second reason beyond interruptibility: it produces one `updateScrollPos` write per animation frame for the whole animation.
+
 ## Block widgets: pick the decoration shape
 
 Common shapes for widgets that own a block region:
@@ -174,6 +184,8 @@ When a widget has a click → dispatch → mode-change cycle, mount a real `Edit
 - `table-decorations.ts` — canonical conditional replace ↔ source-line styling; uses `selectAllDecorationsOnSelectExtension` for click-to-select.
 - `prosemark-core/links.ts` — `linkUrlAt` / `rawUrlAt`, the one place that resolves a link destination from a document position.
 - `prosemark-core/imageSrc.ts` — `imageSrcResolverFacet` / `resolveImageSrc`; widgets resolve `<img src>` in `toDOM` (Writer provides the facet from `image-src-resolver.ts`), so no DOM observer rewrites images after insertion.
-- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position.
-- `editor-extensions.ts` — `createEditorExtensions`, the one place the extension list is assembled. Pieces: `editor-search-extensions.ts` (hidden search panel, `EditorView.scrollHandler` for the ancestor-scroller case, Mod-f / Mod-g / Escape), `link-navigation.ts` (click-to-follow, `followLink`), `editor-clipboard.ts` (image + frontmatter paste), `editor-body-menu.ts` (right-click menu), `viewport-parse.ts`. `use-prosemark-editor.ts` only mounts, swaps, and disposes the view.
+- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed.
+- `editor-view-registry.ts` — the live `EditorView` of each active pane, keyed by path. The one way non-CodeMirror code (link navigation, the palette) reaches a document that is already on screen. Written by `use-register-editor-view.ts` from `editor-pane.tsx`.
+- `pending-target.ts` (in `src/lib/`) — carries a jump target across the gap between `navigateToFile` and the new document's first render. `link-navigation.ts` is the only writer; `use-prosemark-editor.ts`'s `applyPendingTarget` and `use-register-editor-view.ts` are the only consumers.
+- `editor-extensions.ts` — `createEditorExtensions`, the one place the extension list is assembled. Pieces: `editor-search-extensions.ts` (hidden search panel, `EditorView.scrollHandler` for the ancestor-scroller case, Mod-f / Mod-g / Escape), `link-navigation.ts` (click-to-follow, `followLink`), `editor-clipboard.ts` (image + frontmatter paste), `editor-body-menu.ts` (right-click menu), `viewport-parse.ts`. `use-prosemark-editor.ts` mounts, swaps, and disposes the view, and owns the initial scroll of a document: restoring the saved position or consuming a pending target.
 - `node_modules/@prosemark/core/dist/main.js:30` — `selectionTouchesRange` semantics.

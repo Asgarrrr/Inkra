@@ -2,6 +2,9 @@
 
 ## 2026-09-14
 
+- Fix anchor links to a heading in the document you are already reading doing nothing. Clicking `[see](#setup)` now scrolls to that heading, and says so when the document has no such heading.
+- Fix an anchor link landing at the top of the document instead of at its heading when the target file's editor had not mounted yet — the first file of a session, or a file still loading.
+- Stop a jump to a heading overwriting the scroll position saved for the file, which made returning to that tab land in the wrong place.
 - Search inside your documents from the command palette. `Cmd+P` — or the new `Cmd+Shift+F`, which opens the same palette — now lists an **In documents** group under the usual commands and file names: the matching lines, highlighted, grouped by file, with their line numbers, ranked by relevance. Typing plain words looks for files containing all of them, close together; prefixing the query with `/` searches for that exact string instead. Content scanning starts at three characters, so jumping to a file by name stays as instant as before, and it reads the files on disk — a phrase you just typed is findable once the file is saved. Clicking a result opens the file; jumping to the matched line comes next.
 
 ## 2026-09-10

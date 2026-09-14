@@ -14,7 +14,7 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 | 1     | Cœur de scan et ranking (Rust)           | ✅ fait (3 revues + remédiation) |
 | 2     | Commande streamée, annulation, transport | ✅ fait (3 revues + remédiation) |
 | 3     | Palette                                  | ✅ fait (3 revues + remédiation) |
-| 4     | Porteur de cible + correctifs navigation | ⬜ à faire                       |
+| 4     | Porteur de cible + correctifs navigation | ✅ fait (3 revues + remédiation) |
 | 5     | Saut à la ligne                          | ⬜ à faire                       |
 | 6     | Flash bref                               | ⬜ à faire                       |
 
@@ -822,6 +822,148 @@ construction ; un second `requestAnimationFrame` courserait le restore.
 **Tests** : porteur (set/consume, exclusion, pas de fuite, nettoyage sur échec)
 et registre de vue. Le comportement de scroll se vérifie à l'exécution — pas
 d'`EditorView` en `environment: "node"`.
+
+### Résultat — livrée après trois revues et une passe de remédiation
+
+Les trois revues (blue team QA, red team, code review Editor/React) ont **toutes
+bloqué** le premier jet, et convergeaient sur le correctif #3 : le mécanisme de
+suppression de scroll était à la fois inopérant sur le chemin visé et porteur de
+deux régressions pires que le bug qu'il fermait. 9 mutations sur 26 survivaient,
+dont cinq dans du TypeScript pur testable en `node`.
+
+Ce qui a atterri :
+
+- `lib/pending-target.ts` — le porteur généralisé en cible taguée
+  (`heading` | `line`), un seul point de consommation, plus
+  `clearPendingTarget` / `clearAllPendingTargets`.
+- `editor-view-registry.ts` — la vue vivante de chaque panneau **actif**, clefée
+  par chemin, avec contrôle d'identité au désenregistrement (les onglets fichier
+  sont `keepAlive`, donc plusieurs panneaux montés peuvent porter le même
+  chemin).
+- `use-register-editor-view.ts` — l'effet d'enregistrement sorti d'`editor-pane.tsx`
+  (`docs/react-guidelines.md` : pas de `useEffect` en composant), sur le modèle
+  de `useCloseEditorSearchWhenInactive`.
+- `link-navigation.ts` — `navigateToTarget` (branche même-fichier vers la vue
+  vivante), `targetDocPos` (seul décodeur de `kind`), `applyRegisteredViewTarget`.
+- `editor-scroll.ts` — `jumpScrollTop` / `jumpToPos`, le seul endroit où un saut
+  programmatique persiste sa position d'arrivée.
+
+**[D-4] La suppression de scroll est remplacée par une ré-écriture explicite.**
+Écart au correctif #3 tel que rédigé, sur trois constats :
+
+1. **La prémisse du plan est fausse.** Une position écrasée par un saut n'est
+   **pas** persistée en session : `getEditorSessionSnapshot` ne sérialise que
+   `location`, `back` et `forward`. `scrollPos` est en mémoire, par exécution.
+   Le préjudice réel est borné à « changer d'onglet et revenir dans la même
+   session ». La machinerie qui le défendait n'était pas proportionnée.
+2. **La condition de levée était falsifiable par construction.** Lever à la
+   notification dont le `scrollTop` égale la valeur relue après le saut suppose
+   que cette valeur arrive. Les événements de scroll sont coalescés à un par
+   frame, rapportant l'offset **final** : tout ce qui bouge le scroller dans la
+   même frame fait qu'elle n'arrive jamais. Or `docs/editor.md:138` documente
+   que l'ancrage de la boucle de mesure de CodeMirror ajuste le scroller
+   ancêtre quand l'éditeur a le focus — et le flux d'ancre inter-fichiers
+   appelle `view.focus()` avant le rAF. Conséquences : la position du saut était
+   persistée quand même, **et** la suppression restait armée indéfiniment, par
+   panneau, à travers un changement de document.
+3. **Le chemin phare de la slice n'armait rien.** `scrollLiveView` vit dans un
+   module non-hook, hors de portée du `ref` local qui portait la suppression :
+   le correctif #3 n'était pas appliqué au cas que le plan qualifie de « plus
+   courant », et son `"smooth"` produisait 20-30 écritures distinctes.
+
+À la place, tout saut programmatique scrolle en `"auto"`, relit `scrollTop` sur
+le conteneur et l'écrit lui-même via `updateScrollPos`. Ce que l'écouteur a
+persisté entre-temps est corrigé par cette écriture ; le store court-circuite
+sur valeur égale, donc la notification du saut est un no-op. Aucun état armé, donc
+rien ne peut rester coincé, traverser un changement de document, ni avaler un
+scroll légitime — et ça marche identiquement dedans et dehors du hook, ce qui est
+la seule façon de corriger le chemin `scrollLiveView`. Appliqué aux quatre sites :
+montage, swap, `scrollLiveView`, restauration.
+
+Autres défauts corrigés :
+
+- **Le swap écrivait l'offset du fichier sortant dans le fichier entrant.**
+  Quand le panneau ne se démonte pas, `view.dispatch` remplace le document de
+  façon synchrone, le `scrollTop` du conteneur est clampé, et l'événement de
+  scroll part **avant** les callbacks d'animation frame. L'ancienne branche
+  `pos !== null` sortait sans jamais restaurer, donc plus rien ne réparait. La
+  ré-écriture explicite ferme le cas.
+- **Une vue détruite pouvait être rendue par le registre.**
+  `use-prosemark-editor.ts` détruit la vue avant que `onViewChange(null)` ne
+  déclenche le désenregistrement. Dans cette fenêtre, `findOuterScroller` sur un
+  nœud détaché rend `null` et la navigation était un no-op silencieux.
+  `scrollLiveView` rend maintenant un booléen et le porteur reprend la main.
+- **Fenêtre de fuite ouverte par la garde `isActive`.** Le store pose
+  `activeFilePath` de façon synchrone dans `set()`, l'effet d'enregistrement
+  passe plus tard : entre les deux, `getEditorView` rend `undefined` alors que
+  le panneau est déjà monté sur ce chemin, donc ni le montage ni le swap ne
+  consomment la cible. L'enregistrement consomme désormais la cible en attente.
+  Inatteignable en slice 4, atteignable en slice 5 depuis la palette.
+- **Le rAF du saut capturait `pos` sans le document contre lequel il avait été
+  calculé.** `isDisposed()` ne couvre que le démontage ; un rechargement piloté
+  par le watcher n'est pas cadencé par l'utilisateur. La garde teste maintenant
+  chemin **et** version de rechargement.
+- **`targetDocPos` prenait une `string`.** La slice 5 a besoin de
+  `doc.line(n).from` clampé à `doc.lines`, indérivable d'une chaîne sans
+  ré-implémenter `DefaultSplit` — la désynchronisation déjà rencontrée et
+  corrigée côté Rust en slice 1. La signature prend la `Text` maintenant, pour
+  que la slice 5 bascule un `case` au lieu de défaire une signature.
+- **Le porteur n'était jamais nettoyé sur renommage, suppression ou changement
+  de workspace.** Branché sur les quatre actions du store qui appellent déjà
+  `cancelSave`, plus les trois remises à zéro de `workspace-store`.
+- **Les tests ne certifiaient rien.** La branche vue-vivante n'avait aucune
+  assertion de comportement (remplacer son corps par un `return` laissait la
+  suite verte), `followLink` — le point d'entrée réécrit par la slice — zéro
+  couverture, et le placeholder `case "line"` n'était épinglé nulle part. Les
+  sept mutations du tableau ci-dessous sont maintenant fermées. Le
+  désenregistrement a aussi migré du corps de test vers `afterEach` : une
+  assertion qui lève avant laissait la vue dans le registre pour le test
+  suivant.
+- `findHeadingBySlug` n'est plus exporté (son seul appelant est deux lignes plus
+  bas), et `editor-notice-store.ts` utilise les globales de timer plutôt que
+  `window.*`, ce qui le rend observable sous `environment: "node"` — sans quoi
+  l'assertion sur la notice n'est pas écrivable.
+
+Écart de conception assumé : **le registre est une `Map` de module, pas un store
+Zustand**, contrairement au précédent `editor-search-store` cité par le plan.
+Rien ne s'y abonne ; un store ajouterait une surface de rendu pour rien.
+
+**Risques résiduels assumés :**
+
+- Tout ce qui touche au DOM reste hors couverture unitaire : la valeur de
+  `scrollTop` après un vrai layout, l'ordre réel entre l'événement de scroll du
+  swap et le rAF, et l'effet d'enregistrement lui-même. Les fakes de test
+  prouvent le clamp et la ré-écriture, pas le timing du navigateur.
+- La ré-écriture persiste la position **clampée** quand le conteneur ne peut pas
+  atteindre celle demandée. C'est cohérent (la sauvegarde reflète où le
+  conteneur est), mais si le clamp est transitoire — hauteurs pas encore
+  stabilisées — la position sauvegardée est perdue. Non observé.
+- `section-rail.tsx` scrolle toujours via `scrollPosToSafeTop` direct, sans
+  ré-écriture : le clic sur le rail persiste la position d'arrivée par
+  l'écouteur, ce qui est le comportement voulu ici (l'utilisateur navigue dans
+  le document) mais n'est pas garanti par la même règle.
+- La couche de rendu reste sans filet unitaire (`environment: "node"`, pas de
+  `.tsx`) : `editor-pane.tsx` câble le hook d'enregistrement, rien ne le teste.
+
+**Vérification** (depuis `apps/desktop/`, `apps/desktop/src-tauri/`) :
+
+```
+../../node_modules/.bin/vp check   → 0 errors, 1 warning (e2e/wdio.conf.js, préexistant)
+../../node_modules/.bin/vp test    → 53 fichiers, 656 tests passés (648 avant)
+cargo test                         → 205 passés, 0 échec (inchangé)
+```
+
+Auto-contrôle par mutation, sept mutations, **sept attrapées** :
+
+| Mutation                                                   | Résultat | Test qui tombe                                                       |
+| ---------------------------------------------------------- | -------- | -------------------------------------------------------------------- |
+| corps de `scrollLiveView` → `return true`                  | attrapée | `the file on screen reports a heading it doesn't contain…` (+3)      |
+| `same-doc-anchor` routé vers `setPendingTarget`            | attrapée | `a same-document anchor goes to the live view, never onto…`          |
+| `followLink` perd l'ancre d'un lien interne inter-fichiers | attrapée | `carries the anchor of a cross-file internal link`                   |
+| `targetDocPos` rend `target.line` pour une cible ligne     | attrapée | `a line target resolves to nothing until slice 5 converts it`        |
+| le saut n'écrit plus sa position d'arrivée                 | attrapée | `records the clamped landing position, not the one it aimed at` (+3) |
+| l'enregistrement ne consomme plus la cible en attente      | attrapée | `consumes a target left for the path while the view was still…`      |
+| `scrollLiveView` ne retombe plus sur `setPendingTarget`    | attrapée | `a view that cannot scroll hands the target back to the carrier`     |
 
 ## Slice 5 — Saut à la ligne
 

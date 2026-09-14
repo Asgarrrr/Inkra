@@ -5,6 +5,7 @@ import { EditorScrollContainer } from "./editor-scroll-container";
 import { EditorSearchOverview } from "./editor-search-overview";
 import { SectionRail } from "./section-rail";
 import { useCloseEditorSearchWhenInactive } from "./use-close-editor-search-when-inactive";
+import { useRegisterEditorView } from "./use-register-editor-view";
 import { useIsFileLoading } from "@/hooks/use-tabs";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
@@ -29,6 +30,7 @@ export const EditorPane = memo(function EditorPane({ path, isActive }: EditorPan
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   useCloseEditorSearchWhenInactive(isActive);
+  useRegisterEditorView(path, editorView, isActive);
 
   const getScrollContainer = useCallback(() => scrollContainerRef.current, []);
 
