@@ -50,11 +50,10 @@ export function useContentSearch(query: string): ContentSearchState {
       window.clearTimeout(indicatorTimer);
       setIsSearching(false);
       if (stats.outcome === "cancelled") {
-        // Only a teardown reaches the active channel here (a newer search
-        // would already have replaced it). The batches already delivered hold
-        // absolute paths into the workspace the window has left, so freezing
-        // them would show a finished result list for a workspace the user
-        // cannot navigate into.
+        // Only a teardown reaches the active channel here — a newer search
+        // would have replaced it. Batches already delivered hold paths into
+        // the workspace the window has left, so keeping them would show a
+        // finished result list nothing can be opened from.
         setSession(emptySession());
         return;
       }
@@ -95,9 +94,8 @@ export function useContentSearch(query: string): ContentSearchState {
       window.clearTimeout(indicatorTimer);
       channelRef.current = null;
       setIsSearching(false);
-      // Dropping the channel only makes the messages inert; the scan itself
-      // keeps reading the workspace and holding the scan lock until Rust sees
-      // a newer generation.
+      // Dropping the channel only makes the messages inert; the scan keeps
+      // reading the workspace until Rust sees a newer generation.
       if (launched) void tauri.cancelWorkspaceContentSearch().catch(() => {});
     };
   }, [query, hasQuery]);

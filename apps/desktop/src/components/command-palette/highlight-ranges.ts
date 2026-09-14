@@ -9,8 +9,7 @@ export interface HighlightSegment {
  *
  *  Rust merges the ranges, so they arrive sorted and disjoint; the clamping
  *  here keeps an out-of-order or out-of-bounds range from producing garbage.
- *  It does not defend against non-finite offsets, which the `Vec<(u32, u32)>`
- *  transport cannot carry, nor does it align boundaries on graphemes. */
+ *  Boundaries are not aligned on graphemes. */
 export function splitHighlightRanges(
   text: string,
   ranges: readonly (readonly [number, number])[],

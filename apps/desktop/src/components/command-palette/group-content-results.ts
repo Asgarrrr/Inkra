@@ -26,10 +26,9 @@ export function contentRowValue(result: ContentSearchResult): string {
   return `${result.path}:${result.line_number}`;
 }
 
-/** Where opening a result takes the editor. The row's ranges are relative to
- *  the snippet, which may be a window cut out of the line; the editor holds the
- *  whole line, so the window offset is applied here and the carrier never
- *  learns that snippets have windows. */
+/** Where opening a result takes the editor. A row's ranges are relative to its
+ *  snippet, which may be a window cut out of the line; the editor holds the
+ *  whole line, so the window offset is applied here. */
 export function contentResultTarget(result: ContentSearchResult): PendingTarget {
   return {
     kind: "line",
@@ -94,9 +93,8 @@ export interface ContentSectionInput {
 
 export function contentSection(input: ContentSectionInput): ContentSection {
   if (!input.query) return { kind: "idle" };
-  // A session opened on another query answers that one: its rows, its
-  // completion and its outcome are all evidence about text the user has
-  // already edited away, and Enter on one of its rows opens the wrong file.
+  // A session opened on another query answers that one — and Enter on one of
+  // its rows opens a file that matched text the user has already edited away.
   if (input.isStale) return { kind: "pending" };
 
   const groups = orderContentGroups(groupContentResults(input.session.results));

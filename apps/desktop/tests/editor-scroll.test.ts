@@ -60,13 +60,12 @@ type ViewProbe = {
 
 type FakeView = EditorView & { probe: ViewProbe; swapDocument: () => void };
 
-/** `lineBlockAt` answers `tops[i]` on the i-th measurement and repeats the
- *  last one: the height under a jump target only settles once the region parses
- *  and its decorations materialise. It never throws on an out-of-range position
- *  because CodeMirror's doesn't either — the heightmap answers its last block —
- *  so the clamp is only observable through the position it was asked for.
- *  `documentTop` follows the scroller because it is a screen coordinate; a fixed
- *  one would never let a correction converge. */
+/** `lineBlockAt` answers `tops[i]` on the i-th measurement and repeats the last:
+ *  the height under a jump target settles only once its region parses. It never
+ *  throws out of range, because CodeMirror's answers its last block instead — so
+ *  the clamp is observable only through the position it was asked for.
+ *  `documentTop` follows the scroller, being a screen coordinate; a fixed one
+ *  would never let a correction converge. */
 function fakeView(
   scroller: { scrollTop: number },
   tops: number | number[],

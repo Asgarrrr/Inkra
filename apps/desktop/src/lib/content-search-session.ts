@@ -13,8 +13,7 @@ export interface ContentSearchSession {
    *  is stale and its `isComplete` is not a verdict on the current query. */
   query: string;
   /** Arrival order, which is the workspace index order. Score sorting belongs
-   *  to the palette, which must also keep the order stable while the user
-   *  navigates with the keyboard. */
+   *  to the palette, which also owns selection stability. */
   results: ContentSearchResult[];
   stats: ContentSearchStats | null;
   isComplete: boolean;

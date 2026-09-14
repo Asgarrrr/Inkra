@@ -1,16 +1,14 @@
-// Carries a jump target across the gap between `navigateToFile` (which
-// triggers an async load + an editor swap) and the editor's first render
-// of the new document. Keyed by absolute file path. Consumed exactly once:
-// a target left behind fires on an unrelated later navigation.
+// Carries a jump target across the gap between opening a file (an async load
+// plus an editor swap) and the editor's first render of the new document. Keyed
+// by absolute path, consumed exactly once: a target left behind fires on an
+// unrelated later navigation.
 
 export type PendingTarget =
   | { kind: "heading"; slug: string }
   | {
       kind: "line";
       line: number;
-      /** Ranges to flash on arrival, as codepoint offsets into the source line
-       *  — the window a snippet was cut from is the producer's problem, not
-       *  this carrier's. */
+      /** Codepoint offsets into the source line, window already applied. */
       matchRanges: readonly (readonly [number, number])[];
     };
 

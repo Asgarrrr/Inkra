@@ -23,20 +23,19 @@ function findHeadingBySlug(content: string, slug: string): DocumentHeading | und
   return buildSlugIndex(parseDocumentHeadings(content, { maxDepth: 6, slugDepth: 6 })).get(slug);
 }
 
-/** The only place a target kind is decoded. Takes the document rather than its
- *  text: a line target resolves through `doc.line`, and re-deriving line starts
- *  from a string would have to mirror CodeMirror's `DefaultSplit` exactly. */
+/** The only place a target kind is decoded. Takes the document, not its text:
+ *  re-deriving line starts from a string would have to mirror CodeMirror's
+ *  `DefaultSplit` exactly. */
 export function resolveTarget(doc: Text, target: PendingTarget): JumpTarget | null {
   switch (target.kind) {
     case "heading": {
       const pos = findHeadingBySlug(doc.toString(), target.slug)?.pos;
-      // Anchors flash nothing: the heading is the destination, not a match.
+      // A heading is the destination, not a match, so there is nothing to flash.
       return pos === undefined ? null : { pos, flash: [] };
     }
     case "line": {
-      // `line` counts lines in the file on disk, which can have shrunk between
-      // the scan and the click. Clamping covers that one case; it does not make
-      // `doc.line` total, and every producer today is a Rust `u32`.
+      // The file can have shrunk between the scan and the click. The clamp
+      // covers that; it does not make `doc.line` total, which no producer needs.
       const line = doc.line(Math.min(Math.max(target.line, 1), doc.lines));
       return { pos: line.from, flash: lineFlashRanges(line, target.matchRanges) };
     }
@@ -48,16 +47,15 @@ export function resolveTarget(doc: Text, target: PendingTarget): JumpTarget | nu
 }
 
 /** Codepoint offsets into `line` to document ranges, which CodeMirror counts in
- *  UTF-16 units — an accent shifts by one, an emoji by two. One pass over the
- *  line: the source line a windowed snippet came from can be megabytes long, so
- *  a slice per range is quadratic. */
+ *  UTF-16 units — an accent shifts by one, an emoji by two. One pass, because
+ *  the line behind a windowed snippet can be megabytes long. */
 function lineFlashRanges(
   line: Line,
   ranges: readonly (readonly [number, number])[],
 ): readonly FlashRange[] {
-  // Sorted, so one cursor over the line resolves every offset: an unsorted
-  // `wanted` leaves the offsets before the cursor to the tail loop below, which
-  // pins them all to the end of the line and collapses their ranges.
+  // Sorted, so one cursor resolves every offset. Unsorted, the offsets behind
+  // the cursor fall through to the tail loop, which pins them to the end of the
+  // line and collapses their ranges.
   const wanted = [...new Set(ranges.flat())].sort((a, b) => a - b);
   const utf16 = new Map<number, number>();
   let next = 0;
@@ -66,15 +64,14 @@ function lineFlashRanges(
 
   for (const char of line.text) {
     while (next < wanted.length && wanted[next] <= codepoint) utf16.set(wanted[next++], offset);
-    // A line can be megabytes of base64 or minified JSON; walking the rest of
-    // it once every offset is resolved costs milliseconds inside the jump's
+    // Walking the rest of a megabyte line costs milliseconds inside the jump's
     // animation frame.
     if (next === wanted.length) break;
     codepoint++;
     offset += char.length;
   }
-  // Whatever is left addresses text the line no longer has — the file changed
-  // between the scan and the click — and lands on its end, where it is empty.
+  // Whatever is left addresses text the line no longer has, and lands on its
+  // end, where the range is empty and gets dropped below.
   while (next < wanted.length) utf16.set(wanted[next++], offset);
 
   const flash: FlashRange[] = [];
@@ -103,10 +100,9 @@ function scrollLiveView(view: EditorView, filePath: string, target: PendingTarge
   return true;
 }
 
-/** Go to `target` inside `path`. Opens through `openFile`, the rule the palette's
- *  file rows already use, so two rows of the same list cannot open differently:
- *  `navigateToFile` replaces a Settings tab in place where `openFile` opens
- *  beside it. The file already on screen scrolls its live view instead —
+/** Go to `target` inside `path`. Opens through `openFile`, the rule the
+ *  palette's file rows already use, so two rows of one list cannot open
+ *  differently. The file already on screen scrolls its live view instead:
  *  `openFile` returns early on an identical path, so its editor never swaps and
  *  would never consume a pending target. */
 export async function navigateToTarget(path: string, target: PendingTarget): Promise<void> {

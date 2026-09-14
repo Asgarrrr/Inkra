@@ -10,8 +10,7 @@ function parseTarget(view: EditorView, pos: number): number {
   return Math.min(view.state.doc.length, pos + PARSE_OVERSHOOT);
 }
 
-/** Advance the committed syntax tree through `pos` plus an overshoot, under a
- *  time budget. The one place a parse target is derived from a position. */
+/** The one place a parse target is derived from a position. */
 export function parseThrough(view: EditorView, pos: number) {
   forceParsing(view, parseTarget(view, pos), PARSE_BUDGET_MS);
 }
