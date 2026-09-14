@@ -56,12 +56,15 @@ runs ad hoc and is independent of this change.
 
 ## Target state
 
+Vitest disappears from the dependency tree entirely, rather than being promoted
+from `vite-plus/test` to a direct dependency.
+
 | Role            | Today                             | After              |
 | --------------- | --------------------------------- | ------------------ |
 | Package manager | Bun, via `vp install`             | Bun, directly      |
 | Linter          | Oxlint, via `vp lint`             | Biome              |
 | Formatter       | Oxfmt, via `vp fmt`               | Biome              |
-| Test runner     | Vitest, via `vite-plus/test`      | Vitest             |
+| Test runner     | Vitest, via `vite-plus/test`      | `bun test`         |
 | Bundler         | `@voidzero-dev/vite-plus-core`    | Vite 8             |
 | Typecheck       | `tsc`, via `vp lint --type-check` | `tsc`              |
 | Commit hooks    | `.vite-hooks` + `vp staged`       | lefthook           |
@@ -76,6 +79,34 @@ dependency, no wrapper. `engines.node` remains the declarative guard.
 **Biome replaces both Oxlint and Oxfmt.** One tool instead of two, and the only
 lint-and-format option that is not itself a wrapper. Version 2.5.13, published
 2026-09-10.
+
+**`bun test` replaces Vitest outright, rather than Vitest replacing
+`vite-plus/test`.** This removes a dependency instead of swapping one, and it
+decouples the test suite from Vite entirely. That decoupling matters: Vitest 5
+peers on `vite ^6.4 || ^7 || ^8`, which the global `vite` override — pointing
+at `@voidzero-dev/vite-plus-core@0.3.2` — cannot satisfy. Adding real Vitest
+would have forced the bundler slice to land first. Going to `bun test` removes
+the constraint.
+
+`bun:test` exports a `vi` compatibility object covering `fn`, `mock`, `spyOn`,
+`clearAllMocks`, `getTimerCount`, and the synchronous fake-timer API. Measured
+against the suite's actual usage, that covers 218 of the 245 `vi.*` call sites.
+The gaps, all small:
+
+| Missing                                 | Call sites | Replacement                                             |
+| --------------------------------------- | ---------- | ------------------------------------------------------- |
+| `vi.mocked`                             | 19         | identity helper; it is a TypeScript type assertion only |
+| `vi.stubGlobal` / `vi.unstubAllGlobals` | 4          | save, assign, restore in a local helper                 |
+| `vi.waitFor`                            | 2          | small poll-with-timeout helper                          |
+| `vi.runOnlyPendingTimersAsync`          | 1          | synchronous `runOnlyPendingTimers` plus an awaited tick |
+| `vi.advanceTimersByTimeAsync`           | 1          | synchronous `advanceTimersByTime` plus an awaited tick  |
+
+The shape of the migration was verified on `wiki-links.test.ts`, the heaviest
+mock user in the suite at 32 `vi.*` calls. A purely mechanical conversion of
+its import line ran 41 tests green under `bun test`. Two properties that could
+have made this a rewrite do not apply here: no `vi.mock` call uses the
+factory-less auto-mock form, and `mock.module` updates the live binding of an
+already-imported module, so static imports see the mock without restructuring.
 
 **Formatter configuration is `indentStyle: space`, `indentWidth: 2`,
 `lineWidth: 100`.** Measured against the current Oxfmt output:
@@ -122,12 +153,16 @@ Each slice is independently verifiable and leaves the repo green.
 
 ### Slice 1 — Test runner
 
-Replace `vite-plus/test` with `vitest` across 57 test files. Add real `vitest`
-to the catalog and drop the `npm:@voidzero-dev/vite-plus-test@latest` alias and
-the `@voidzero-dev/vite-plus-test>vite` override. Move the root config's `test`
-block into a Vitest workspace config.
+Point the 57 test files at `bun:test` instead of `vite-plus/test`. Add the
+compat helpers for the five missing APIs in a shared test utility. Drop the
+`npm:@voidzero-dev/vite-plus-test@latest` catalog alias, the `vitest` override,
+and the `@voidzero-dev/vite-plus-test>vite` override. Remove the `test` block
+from the root config and the `test` block from `apps/desktop/vite.config.ts` —
+the latter also unblocks Slice 2, since real Vite's `defineConfig` rejects a
+`test` key.
 
-Verify: 57 test files, 702 tests, all passing, run through `vitest` directly.
+Verify: 702 tests passing under `bun test`, compared count-for-count against
+the current Vitest run.
 
 ### Slice 2 — Bundler and dev server
 
