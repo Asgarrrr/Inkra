@@ -6,6 +6,45 @@ Branche : `feat/content-search`
 Document vivant. Chaque slice est mise à jour ici au fur et à mesure :
 statut, décisions prises, écarts au plan initial, preuve de vérification.
 
+## Reprendre ici
+
+Ce fichier est le document de reprise. Une session fraîche n'a besoin que de
+lui, de la spec, et de `docs/workflows/agent-review.md`.
+
+État : slices 0–4 commitées sur `feat/content-search` (5 commits), arbre propre.
+Reste la **slice 5** (saut à la ligne) puis la **slice 6** (flash bref).
+
+Lire dans cet ordre : « Conventions de travail » (la méthode, y compris les
+trois revues de fin de slice), « Décisions figées », « Écarts au plan initial »
+(`[D-1]` à `[D-4]`), puis le « Résultat » de chaque slice faite — ils portent les
+risques résiduels qui conditionnent la suite.
+
+Vérification de base à retrouver avant de toucher quoi que ce soit :
+
+```
+cd apps/desktop/src-tauri && cargo test          → 205 passed
+cd apps/desktop && ../../node_modules/.bin/vp check   → 0 errors, 1 warning
+cd apps/desktop && ../../node_modules/.bin/vp test    → 656 passed
+```
+
+L'unique warning est préexistant, dans `e2e/wdio.conf.js`, hors périmètre.
+`vp` n'est pas sur le `PATH` : il vit dans `node_modules/.bin/` à la racine du
+repo.
+
+**Environnement déjà en place, ne pas le refaire :** `node_modules` installé,
+`tauri-webdriver` et `tauri-cli` installés via cargo, et le bundle e2e construit
+dans `apps/desktop/src-tauri/target/release/bundle/macos/Writer.app`. Le harnais
+e2e sert à couvrir la couche de rendu, que le runner node-only n'atteint pas —
+`apps/desktop/e2e/specs/content-search.spec.js` est auto-amorçant et rejouable :
+
+```
+cd apps/desktop/e2e && pnpm exec wdio run ./wdio.conf.js --spec ./specs/content-search.spec.js
+```
+
+Rebuild obligatoire après toute modif frontend (l'app embarque les assets
+construits), et le `beforeBuildCommand` de Tauri appelle `vp build` — préfixer
+par `export PATH="<repo>/node_modules/.bin:$PATH"` sinon le build meurt en 127.
+
 ## Statut
 
 | Slice | Sujet                                    | Statut                           |
