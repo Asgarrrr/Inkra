@@ -3,7 +3,16 @@
 // of the new document. Keyed by absolute file path. Consumed exactly once:
 // a target left behind fires on an unrelated later navigation.
 
-export type PendingTarget = { kind: "heading"; slug: string } | { kind: "line"; line: number };
+export type PendingTarget =
+  | { kind: "heading"; slug: string }
+  | {
+      kind: "line";
+      line: number;
+      /** Ranges to flash on arrival, as codepoint offsets into the source line
+       *  — the window a snippet was cut from is the producer's problem, not
+       *  this carrier's. */
+      matchRanges: readonly (readonly [number, number])[];
+    };
 
 const pending = new Map<string, PendingTarget>();
 

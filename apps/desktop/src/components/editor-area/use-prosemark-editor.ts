@@ -5,7 +5,7 @@ import { history } from "@codemirror/commands";
 import { closeEditorSearch } from "./editor-search-store";
 import { findOuterScroller, jumpScrollTop, jumpToPos } from "./editor-scroll";
 import { createEditorExtensions } from "./editor-extensions";
-import { targetDocPos } from "./link-navigation";
+import { resolveTarget } from "./link-navigation";
 import { advanceViewportParse } from "./viewport-parse";
 import { clampSelectionToHeadings } from "./heading-decorations";
 import * as editorApi from "@/hooks/editor-api";
@@ -57,9 +57,9 @@ function applyPendingTarget({
   isCurrent: () => boolean;
 }) {
   const target = consumePendingTarget(filePath);
-  const pos = target === undefined ? null : targetDocPos(view.state.doc, target);
+  const resolved = target === undefined ? null : resolveTarget(view.state.doc, target);
 
-  if (pos === null && target?.kind === "heading") {
+  if (resolved === null && target?.kind === "heading") {
     // Runs before the scroll listener is attached on the mount path, so this
     // jump would otherwise never be persisted at all.
     jumpScrollTop(scrollContainer, filePath, 0);
@@ -73,8 +73,8 @@ function applyPendingTarget({
   requestAnimationFrame(() => {
     if (!isCurrent()) return;
     // Always apply the initial scroll so a new file can reset a reused container back to the top.
-    if (pos === null) jumpScrollTop(scrollContainer, filePath, scrollPos);
-    else jumpToPos(view, scrollContainer, filePath, pos);
+    if (resolved === null) jumpScrollTop(scrollContainer, filePath, scrollPos);
+    else jumpToPos(view, scrollContainer, filePath, resolved);
   });
 }
 

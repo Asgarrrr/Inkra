@@ -84,6 +84,9 @@ function fakeView(
     get documentTop() {
       return -scroller.scrollTop;
     },
+    // Every jump dispatches its flash, empty or not; which ranges it carries
+    // and how long they stay lit belong to `match-flash.test.ts`.
+    dispatch: () => {},
     lineBlockAt: (pos: number) => {
       probe.measuredAt.push(pos);
       return { top: blockTops[Math.min(probe.measuredAt.length - 1, blockTops.length - 1)] };
@@ -112,6 +115,11 @@ function flushMeasures(view: FakeView, maxRounds = 10) {
     requests.forEach((request, i) => request.write?.(measured[i], view));
     rounds++;
   }
+}
+
+/** A jump to a position with nothing to flash: what every anchor target is. */
+function at(pos: number) {
+  return { pos, flash: [] };
 }
 
 function openFileWith(scrollPos: number) {
@@ -170,7 +178,7 @@ describe("jumpToPos", () => {
   test("records the clamped landing position, not the one it aimed at", () => {
     const scroller = fakeScroller({ scrollHeight: 2000, clientHeight: 800 });
 
-    jumpToPos(fakeView(scroller, 9000), scroller, PATH, 42);
+    jumpToPos(fakeView(scroller, 9000), scroller, PATH, at(42));
 
     expect(scroller.scrollTop).toBe(1200);
     expect(savedScrollPos()).toBe(1200);
@@ -180,7 +188,7 @@ describe("jumpToPos", () => {
     openFileWith(4200);
     const scroller = fakeScroller({});
 
-    jumpToPos(fakeView(scroller, 3000), scroller, PATH, 42);
+    jumpToPos(fakeView(scroller, 3000), scroller, PATH, at(42));
 
     expect(savedScrollPos()).not.toBe(4200);
     expect(savedScrollPos()).toBe(scroller.scrollTop);
@@ -190,7 +198,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, 5000);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
 
     expect(mockedParseThrough).toHaveBeenCalledWith(view, 42);
     expect(view.probe.parsedAtMeasurement).toBe(0);
@@ -202,7 +210,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, 5000);
 
-    jumpToPos(view, scroller, PATH, DOC_LENGTH + 5_000);
+    jumpToPos(view, scroller, PATH, at(DOC_LENGTH + 5_000));
 
     expect(view.probe.measuredAt).toEqual([DOC_LENGTH]);
     expect(scroller.scrollTop).toBe(5000 - SAFE_MARGIN);
@@ -214,7 +222,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, 10);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     flushMeasures(view);
 
     expect(scroller.scrollTop).toBe(0);
@@ -225,7 +233,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({ scrollHeight: 2000, clientHeight: 800 });
     const view = fakeView(scroller, [9000, 9300]);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     flushMeasures(view);
 
     expect(scroller.scrollTop).toBe(1200);
@@ -236,7 +244,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, [5000, 5300]);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     const landed = scroller.scrollTop;
 
     flushMeasures(view);
@@ -254,7 +262,7 @@ describe("jumpToPos", () => {
       Array.from({ length: 12 }, (_, i) => 5000 + i * 300),
     );
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     flushMeasures(view);
 
     expect(scroller.scrollCalls).toBe(3); // the jump plus two corrections
@@ -265,7 +273,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, [5000, 5300]);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     const landed = scroller.scrollTop;
     scroller.scrollTop = 1000; // a user scroll between the jump and the measure
 
@@ -282,7 +290,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, [5000, 5300], { hasFocus: true });
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     const landed = scroller.scrollTop;
     flushMeasures(view);
 
@@ -297,9 +305,9 @@ describe("jumpToPos", () => {
     const wholePixels = fakeScroller({});
     const wholePixelsView = fakeView(wholePixels, [5000, 5002]);
 
-    jumpToPos(subPixelView, subPixel, PATH, 42);
+    jumpToPos(subPixelView, subPixel, PATH, at(42));
     flushMeasures(subPixelView);
-    jumpToPos(wholePixelsView, wholePixels, PATH, 42);
+    jumpToPos(wholePixelsView, wholePixels, PATH, at(42));
     flushMeasures(wholePixelsView);
 
     // Both measured twice; the sub-pixel one then decided against moving.
@@ -313,7 +321,7 @@ describe("jumpToPos", () => {
     const scroller = fakeScroller({});
     const view = fakeView(scroller, [5000, 5300]);
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     const landed = scroller.scrollTop;
     view.swapDocument(); // a tab swap or a watcher reload, before the measure
 
@@ -332,7 +340,7 @@ describe("jumpToPos", () => {
     // Queued first, so its write runs in the gap after our request was read.
     view.probe.pending.push({ read: () => null, write: () => view.swapDocument() });
 
-    jumpToPos(view, scroller, PATH, 42);
+    jumpToPos(view, scroller, PATH, at(42));
     const landed = scroller.scrollTop;
 
     flushMeasures(view);

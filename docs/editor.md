@@ -43,9 +43,11 @@ When the scrollable element is an ancestor:
 
 Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/use-prosemark-editor.ts`.
 
-## A programmatic jump parses, persists its landing position, and corrects its drift
+## A programmatic jump parses, persists its landing position, flashes, and corrects its drift
 
-`jumpToPos` in `editor-scroll.ts` does three things in that order, and each one is there because the version without it was wrong. The parse and the drift correction are below; the landing position comes first because it is the one every scrolling caller shares.
+`jumpToPos` in `editor-scroll.ts` does four things in that order, and each one is there because the version without it was wrong. The parse, the flash and the drift correction are below; the landing position comes first because it is the one every scrolling caller shares.
+
+A jump takes a `JumpTarget` — a position plus the ranges to flash — rather than a bare position, because both callers (`scrollLiveView` for the file already on screen, `applyPendingTarget` for the one being opened) must flash, and the decision belongs in one place. `resolveTarget` in `link-navigation.ts` is that place: the only decoder of a target kind, and now the only producer of flash ranges.
 
 ### It persists its own landing position
 
@@ -60,6 +62,25 @@ Do not try to suppress the listener instead. A value-matching suppression ("drop
 ### It parses the target region before measuring it
 
 `lineBlockAt` reads the heightmap, and heights in a region the committed tree has not reached are estimates (see "Tree-derived StateFields go stale in unparsed regions"). Aiming at an estimate lands next to the line, not on it, because the block moves as its decorations materialise. So `jumpToPos` calls `parseThrough(view, pos)` first — the same entry point the viewport paths use, so the overshoot and the time budget are declared once.
+
+### It flashes the ranges it aimed at, after it lands
+
+`match-flash.ts` owns the flash: a `StateEffect` carrying document ranges, a `StateField<DecorationSet>` of `Decoration.mark({ class: "cm-match-flash" })`, and a `setTimeout` per view that puts it out. Six rules earned their place:
+
+- **It is dispatched after the scroll.** The parse feeds the measurement the scroll makes; a transaction between them is one more thing that can move the heightmap under it. Decoration marks change no heights, so the drift correction still measures what the jump aimed at. That invariant lives in the stylesheet, and `prosemark-theme.css` says so: no rule on `.cm-match-flash` may change a line's metrics.
+- **Every jump dispatches, including one with nothing to flash.** `flashMatchRanges` is also the only path that puts a flash out early, so a jump that skipped it would leave the previous flash burning on a line the reader has left. A `Decoration.none` transaction changes no heights either.
+- **A swap or a watcher reload clears the field**, keyed on the `writer.swap` / `writer.reload` user event that `use-prosemark-editor.ts` already stamps. Today's swap replaces the whole document, so mapping would drop the ranges anyway; the user event is what keeps that true of a swap that reuses part of the text.
+- **The expiry timer is per view**, in a `WeakMap`. One module-level timer would let a flash in a second pane cancel the first pane's expiry and leave it lit until its next edit.
+- **The offsets come from `resolveTarget`, in UTF-16 units.** The scan counts codepoints (`[RT-2]` in the content-search plan), so the conversion walks the line once with a monotone cursor, sorted and stopped as soon as the last offset resolves — the source line behind a windowed snippet can be megabytes long, and a slice per range is quadratic.
+- **`MATCH_FLASH_MS` is the only duration.** The stylesheet reads it as `--match-flash-duration`, pushed onto the span through the decoration's `attributes`. A literal in the CSS drifts: too long leaves an invisible mark, too short cuts the fade off mid-way.
+
+Dispatching into a destroyed view is a no-op: `EditorView.update` stores the state and returns when `destroyed` is set. So an expiry that outlives its pane needs no guard. A timer that survives a swap is likewise harmless — it fires against a field the swap already emptied, and dispatches one transaction nothing reads.
+
+Three things the flash does not paint, all accepted:
+
+- **A range clipped by the snippet window.** A line longer than `MAX_SNIPPET_CHARS` is sent to the palette as a window around its first match, and `content_search.rs` clips the ranges to that window (`range_end.min(end)`). A match straddling the window's edge therefore flashes only the part the palette showed, and a match entirely outside it never flashes at all. The rule is "we flash what we showed you".
+- **A range under a `Decoration.replace`.** An image fold, a mermaid or math block, or a folded code block replaces the text with a widget, and a mark inside replaced text renders nothing. The jump still lands on the line; nothing lights up.
+- **A range that splits a grapheme cluster.** Offsets are codepoint boundaries, not grapheme boundaries, so a flash can cut a ZWJ sequence or a flag in half. The same limit as `splitHighlightRanges` in the palette, and accepted for the same reason: the scan has no grapheme segmenter.
 
 ### It corrects the residual drift, but only on an unfocused view
 
@@ -206,7 +227,8 @@ When a widget has a click → dispatch → mode-change cycle, mount a real `Edit
 - `table-decorations.ts` — canonical conditional replace ↔ source-line styling; uses `selectAllDecorationsOnSelectExtension` for click-to-select.
 - `prosemark-core/links.ts` — `linkUrlAt` / `rawUrlAt`, the one place that resolves a link destination from a document position.
 - `prosemark-core/imageSrc.ts` — `imageSrcResolverFacet` / `resolveImageSrc`; widgets resolve `<img src>` in `toDOM` (Writer provides the facet from `image-src-resolver.ts`), so no DOM observer rewrites images after insertion.
-- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed. `jumpToPos` also forces the parse of the target region before measuring it and corrects the residual drift afterwards (`correctDrift`, unfocused views only).
+- `editor-scroll.ts` — `findOuterScroller` / `scrollPosToSafeTop`, the one place that scrolls the ancestor container to a document position, plus `jumpScrollTop` / `jumpToPos`, the one place a programmatic jump persists where it landed. `jumpToPos` also forces the parse of the target region before measuring it, flashes the target's ranges, and corrects the residual drift afterwards (`correctDrift`, unfocused views only).
+- `match-flash.ts` — `flashMatchRanges` and the field it drives, the one place the editor highlights something transiently. The class it applies, `.cm-match-flash`, is styled in `prosemark-theme.css` (and held flat under `prefers-reduced-motion`).
 - `viewport-parse.ts` — `parseThrough`, the one place a parse target is derived from a document position (overshoot + time budget), plus `advanceViewportParse` (mount and swap) and `viewportParsePlugin` (scroll).
 - `editor-view-registry.ts` — the live `EditorView` of each active pane, keyed by path. The one way non-CodeMirror code (link navigation, the palette) reaches a document that is already on screen. Written by `use-register-editor-view.ts` from `editor-pane.tsx`.
 - `pending-target.ts` (in `src/lib/`) — carries a jump target across the gap between `openFile` and the new document's first render. `link-navigation.ts` is the only writer; `use-prosemark-editor.ts`'s `applyPendingTarget` and `use-register-editor-view.ts` are the only consumers.

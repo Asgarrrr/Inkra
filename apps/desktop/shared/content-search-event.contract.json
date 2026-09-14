@@ -9,6 +9,7 @@
           "line_number": 3,
           "line_content": "needle here",
           "match_ranges": [[0, 6]],
+          "line_content_offset": 12,
           "line_truncated": true,
           "score": 4000500
         }

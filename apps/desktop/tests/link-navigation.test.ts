@@ -27,7 +27,7 @@ import {
   applyRegisteredViewTarget,
   followLink,
   navigateToTarget,
-  targetDocPos,
+  resolveTarget,
 } from "../src/components/editor-area/link-navigation";
 import { useEditorNoticeStore } from "../src/components/editor-area/editor-notice-store";
 import {
@@ -38,6 +38,7 @@ import { resolveLinkTarget } from "../src/lib/paths";
 import {
   clearAllPendingTargets,
   consumePendingTarget,
+  type PendingTarget,
   setPendingTarget,
 } from "../src/lib/pending-target";
 import { createSettingsTab, useEditorStore } from "../src/stores/editor-store";
@@ -145,42 +146,138 @@ afterEach(() => {
   registered = null;
 });
 
-describe("targetDocPos", () => {
+/** A line target, spelled once: only the ranges vary across these cases. */
+function line(number: number, matchRanges: [number, number][] = []): PendingTarget {
+  return { kind: "line", line: number, matchRanges };
+}
+
+describe("resolveTarget", () => {
   test("resolves a heading target to the heading's document position", () => {
     const doc = Text.of(["intro text", "", "## Details", "", "more"]);
 
-    expect(targetDocPos(doc, { kind: "heading", slug: "details" })).toBe(12);
+    expect(resolveTarget(doc, { kind: "heading", slug: "details" })).toEqual({
+      pos: 12,
+      flash: [],
+    });
   });
 
   test("a heading the document doesn't contain resolves to nothing", () => {
     const doc = Text.of(["## Details"]);
 
-    expect(targetDocPos(doc, { kind: "heading", slug: "missing" })).toBeNull();
+    expect(resolveTarget(doc, { kind: "heading", slug: "missing" })).toBeNull();
   });
 
   test("resolves a line target to the start of that line", () => {
     const doc = Text.of(["one", "two", "three", "four"]);
 
-    expect(targetDocPos(doc, { kind: "line", line: 3 })).toBe(8);
+    expect(resolveTarget(doc, line(3))).toEqual({ pos: 8, flash: [] });
   });
 
   test("a line past the end of a document that shrank lands on its last line", () => {
     const doc = Text.of(["one", "two", "three", "four"]);
 
-    expect(targetDocPos(doc, { kind: "line", line: 99 })).toBe(14);
+    expect(resolveTarget(doc, line(99))?.pos).toBe(14);
   });
 
   test("a line at or below zero lands on the first line", () => {
     const doc = Text.of(["one", "two", "three"]);
 
-    expect(targetDocPos(doc, { kind: "line", line: 0 })).toBe(0);
-    expect(targetDocPos(doc, { kind: "line", line: -3 })).toBe(0);
+    expect(resolveTarget(doc, line(0))?.pos).toBe(0);
+    expect(resolveTarget(doc, line(-3))?.pos).toBe(0);
   });
 
   test("a single-line document answers its one line for any number", () => {
     const doc = Text.of(["only"]);
 
-    expect(targetDocPos(doc, { kind: "line", line: 7 })).toBe(0);
+    expect(resolveTarget(doc, line(7))?.pos).toBe(0);
+  });
+
+  test("match ranges become document ranges on the line they belong to", () => {
+    const doc = Text.of(["one", "needle here", "three"]);
+
+    // The line starts at 4; "needle" is codepoints 0..6 of it, "here" 7..11.
+    expect(
+      resolveTarget(
+        doc,
+        line(2, [
+          [0, 6],
+          [7, 11],
+        ]),
+      )?.flash,
+    ).toEqual([
+      { from: 4, to: 10 },
+      { from: 11, to: 15 },
+    ]);
+  });
+
+  test("counts the codepoints the scan counted, not UTF-16 units", () => {
+    // "é" is one codepoint and one UTF-16 unit, the emoji is one codepoint and
+    // two: taking the offsets as indices puts the highlight two characters off.
+    const accented = Text.of(["Café déjà vu"]);
+    const emoji = Text.of(["Un émoji 🎉 avant throughput"]);
+
+    expect(resolveTarget(accented, line(1, [[5, 9]]))?.flash).toEqual([{ from: 5, to: 9 }]);
+    expect(accented.sliceString(5, 9)).toBe("déjà");
+    expect(resolveTarget(emoji, line(1, [[17, 27]]))?.flash).toEqual([{ from: 18, to: 28 }]);
+    expect(emoji.sliceString(18, 28)).toBe("throughput");
+  });
+
+  test("ranges the line no longer reaches are dropped, not clamped onto its end", () => {
+    // The file changed between the scan and the click, and the line is shorter
+    // than the one that matched.
+    const doc = Text.of(["one", "short", "three"]);
+
+    expect(
+      resolveTarget(
+        doc,
+        line(2, [
+          [0, 5],
+          [40, 46],
+        ]),
+      )?.flash,
+    ).toEqual([{ from: 4, to: 9 }]);
+  });
+
+  test("ranges listed out of document order all survive", () => {
+    // The scan ranks its ranges, so the later match on a line can come first.
+    // Resolving them against an unsorted cursor pins every offset behind the
+    // cursor to the end of the line, and those ranges collapse to nothing.
+    const doc = Text.of(["needle here"]);
+
+    expect(
+      resolveTarget(
+        doc,
+        line(1, [
+          [7, 11],
+          [0, 6],
+        ]),
+      )?.flash,
+    ).toEqual([
+      { from: 7, to: 11 },
+      { from: 0, to: 6 },
+    ]);
+  });
+
+  test("a range that outruns the end of the line stops there", () => {
+    const doc = Text.of(["one", "short", "three"]);
+
+    expect(resolveTarget(doc, line(2, [[2, 46]]))?.flash).toEqual([{ from: 6, to: 9 }]);
+  });
+
+  test("empty and inverted ranges never reach the editor", () => {
+    // `Decoration.mark` rejects an empty range, and an inverted one would paint
+    // backwards over text that never matched.
+    const doc = Text.of(["needle here"]);
+
+    expect(
+      resolveTarget(
+        doc,
+        line(1, [
+          [3, 3],
+          [8, 2],
+        ]),
+      )?.flash,
+    ).toEqual([]);
   });
 });
 
@@ -199,7 +296,7 @@ describe("navigateToTarget", () => {
     readsReturning({ "/a.md": "a" });
     await useEditorStore.getState().openFile("/a.md");
 
-    await navigateToTarget("/gone.md", { kind: "line", line: 12 });
+    await navigateToTarget("/gone.md", { kind: "line", line: 12, matchRanges: [] });
 
     expect(useEditorStore.getState().activeFilePath).toBe("/a.md");
     expect(consumePendingTarget("/gone.md")).toBeUndefined();
@@ -234,9 +331,9 @@ describe("navigateToTarget", () => {
     const { view, scroller } = scrollableView("one\ntwo\nthree\nfour\n");
     register("/a.md", view);
 
-    await navigateToTarget("/a.md", { kind: "line", line: 3 });
+    await navigateToTarget("/a.md", { kind: "line", line: 3, matchRanges: [] });
     const atLine3 = scroller.scrollTop;
-    await navigateToTarget("/a.md", { kind: "line", line: 4 });
+    await navigateToTarget("/a.md", { kind: "line", line: 4, matchRanges: [] });
 
     expect(atLine3).toBeGreaterThan(0);
     // Lines 3 and 4 start at document positions 8 and 14; the safe-zone margin
@@ -256,20 +353,20 @@ describe("navigateToTarget", () => {
     const viaFileRow = tabKinds();
 
     withSettingsTabActive();
-    await navigateToTarget("/a.md", { kind: "line", line: 2 });
+    await navigateToTarget("/a.md", { kind: "line", line: 2, matchRanges: [] });
 
     expect(viaFileRow).toEqual(["settings", "file"]);
     expect(tabKinds()).toEqual(viaFileRow);
-    expect(consumePendingTarget("/a.md")).toEqual({ kind: "line", line: 2 });
+    expect(consumePendingTarget("/a.md")).toEqual({ kind: "line", line: 2, matchRanges: [] });
   });
 
   test("the file on screen but not yet mounted gets the target for its first mount", async () => {
     readsReturning({ "/a.md": "# Intro\n" });
     await useEditorStore.getState().openFile("/a.md");
 
-    await navigateToTarget("/a.md", { kind: "line", line: 3 });
+    await navigateToTarget("/a.md", { kind: "line", line: 3, matchRanges: [] });
 
-    expect(consumePendingTarget("/a.md")).toEqual({ kind: "line", line: 3 });
+    expect(consumePendingTarget("/a.md")).toEqual({ kind: "line", line: 3, matchRanges: [] });
   });
 });
 

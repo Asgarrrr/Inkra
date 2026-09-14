@@ -31,7 +31,12 @@ import { useTheme } from "@/hooks/use-theme";
 import { useFuzzySearch } from "./use-fuzzy-search";
 import { useContentSearch } from "./use-content-search";
 import { ContentResults } from "./content-results";
-import { contentRowValue, contentSearchQuery, contentSection } from "./group-content-results";
+import {
+  contentResultTarget,
+  contentRowValue,
+  contentSearchQuery,
+  contentSection,
+} from "./group-content-results";
 import { useGlobalRecentFiles } from "@/hooks/use-global-recent-files";
 import { openStandaloneFile } from "@/hooks/use-open-drop";
 import { settingsKind } from "@/components/editor-area/page-kinds/settings";
@@ -107,7 +112,7 @@ export function CommandPalette() {
   // Content rows only exist under a workspace, so the compact branch of
   // `handleSelect` has nothing to answer here.
   function handleSelectContentResult(result: ContentSearchResult) {
-    void navigateToTarget(result.path, { kind: "line", line: result.line_number });
+    void navigateToTarget(result.path, contentResultTarget(result));
     close();
   }
 

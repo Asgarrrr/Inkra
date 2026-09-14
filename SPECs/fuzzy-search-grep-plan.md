@@ -11,20 +11,22 @@ statut, décisions prises, écarts au plan initial, preuve de vérification.
 Ce fichier est le document de reprise. Une session fraîche n'a besoin que de
 lui, de la spec, et de `docs/workflows/agent-review.md`.
 
-État : slices 0–5 commitées sur `feat/content-search` (6 commits), arbre propre.
-Reste la **slice 6** (flash bref).
+État : **feature close.** Slices 0–6 commitées sur `feat/content-search`
+(8 commits), arbre propre. Il ne reste rien à implémenter ; la branche est
+prête pour la PR.
 
 Lire dans cet ordre : « Conventions de travail » (la méthode, y compris les
 trois revues de fin de slice), « Décisions figées », « Écarts au plan initial »
-(`[D-1]` à `[D-4]`), puis le « Résultat » de chaque slice faite — ils portent les
-risques résiduels qui conditionnent la suite.
+(`[D-1]` à `[D-4]`), puis le « Résultat » de chaque slice — ils portent les
+risques résiduels assumés, qui sont ce qu'une session de maintenance doit
+connaître avant de toucher à cette feature.
 
 Vérification de base à retrouver avant de toucher quoi que ce soit :
 
 ```
-cd apps/desktop/src-tauri && cargo test          → 205 passed
+cd apps/desktop/src-tauri && cargo test          → 207 passed
 cd apps/desktop && ../../node_modules/.bin/vp check   → 0 errors, 1 warning
-cd apps/desktop && ../../node_modules/.bin/vp test    → 656 passed
+cd apps/desktop && ../../node_modules/.bin/vp test    → 697 passed
 ```
 
 L'unique warning est préexistant, dans `e2e/wdio.conf.js`, hors périmètre.
@@ -55,7 +57,7 @@ par `export PATH="<repo>/node_modules/.bin:$PATH"` sinon le build meurt en 127.
 | 3     | Palette                                  | ✅ fait (3 revues + remédiation) |
 | 4     | Porteur de cible + correctifs navigation | ✅ fait (3 revues + remédiation) |
 | 5     | Saut à la ligne                          | ✅ fait (3 revues + remédiation) |
-| 6     | Flash bref                               | ⬜ à faire                       |
+| 6     | Flash bref                               | ✅ fait (3 revues + remédiation) |
 
 ## Conventions de travail
 
@@ -1231,6 +1233,146 @@ CodeMirror). Forme de dispatch à suivre : `jumpToMatch`
 porteur, `searchScrollIntent` (`editor-search-extensions.ts:29-35`) s'y accroche
 — soit on émet le même `userEvent`, soit on appelle `scrollPosToSafeTop`
 directement.
+
+### Résultat — livrée après trois revues, une remédiation, et un correctif trouvé au runtime
+
+**Décision produit prise en cours de slice** : le flash surligne les **plages
+matchées**, pas la ligne entière, conformément à la spec (`:119`). Ça coûte un
+champ Rust — le décalage de la fenêtre de snippet — et une modification du
+contrat IPC, parce que `snippet_window` rebase les plages dans une fenêtre de
+400 caractères dont le décalage n'était pas transmis. Sans lui, une plage sur une
+ligne longue pointe au mauvais endroit.
+
+Les trois revues ont bloqué, et chacune a trouvé une part que les deux autres
+avaient manquée. Le point commun des trois : **l'observable des tests était l'état
+privé du champ**, jamais ce qui est peint. Trois mutations d'une ligne
+supprimaient tout l'effet visible en laissant 692 tests verts —
+`provide: () => []`, le champ retiré de `createEditorExtensions`, et le sélecteur
+CSS renommé. Un dispatch d'effet sur un état qui ne contient pas le champ est un
+**no-op silencieux** de CodeMirror : aucune erreur, aucun log.
+
+Ce qui a atterri :
+
+- `content_search.rs` — `ContentMatch.line_content_offset`, le décalage en points
+  de code de `line_content` dans sa ligne source ; `snippet_window` rend une
+  struct nommée plutôt qu'un triplet dont le troisième membre serait ambigu.
+- `shared/content-search-event.contract.json` — le champ, épinglé des deux côtés.
+- `pending-target.ts` — la cible `line` porte ses plages, en points de code
+  relatifs à la **ligne source** : le porteur ignore la notion de fenêtre.
+  `heading` n'en porte pas, donc **pas de flash sur le chemin des ancres**, le
+  comportement vérifié de la slice 4 reste intact.
+- `match-flash.ts` — `setMatchFlash`, `matchFlashField`, minuterie par vue en
+  `WeakMap`, vidage sur `tr.isUserEvent("writer")`.
+- `link-navigation.ts` — `targetDocPos` devient `resolveTarget` et rend
+  `{ pos, flash }` : `jumpToPos` reste le point d'application unique pour les
+  deux chemins. Renommage forcé par le type de retour, pas opportuniste.
+
+Défauts corrigés en remédiation :
+
+- **Rien ne vérifiait que le champ peint.** Fermé par un test qui construit
+  l'état à partir de la **vraie** liste `createEditorExtensions` et lit la
+  facette `EditorView.decorations`, pas le champ. Fichier séparé : le test du
+  champ mocke `viewport-parse`, et mocker un module de la liste de production
+  dans le test qui certifie cette liste aurait vidé la garantie.
+- **Durée et nom de classe en double source de vérité.** Mesuré : à 2000 la
+  marque reste 800 ms totalement transparente, à 600 elle disparaît au milieu du
+  fondu — le saut visuel que le commentaire CSS dit vouloir éviter. Fermé par
+  liaison, pas par test de cohérence : la durée part du TS vers la feuille en
+  custom property, et plus aucun littéral ne subsiste côté CSS. Un test de
+  cohérence constate la dérive, la liaison la rend impossible.
+- **Le tri de `wanted` n'était épinglé par rien** — il porte pourtant l'invariant
+  du curseur monotone, seule raison pour laquelle la conversion est en un
+  passage.
+- **Un saut sans rien à flasher laissait allumé le flash précédent** : la garde
+  d'optimisation était aussi le seul chemin d'extinction. Chaque saut est
+  désormais autoritaire sur le champ.
+- Divers : sortie anticipée de `lineFlashRanges` (16,4 ms mesurés sur une ligne
+  ASCII de 2 Mio avec 50 plages, en synchrone dans le rAF du saut) ; fake de
+  scroller réaligné sur le navigateur — **le défaut que la slice 5 avait déjà
+  fermé une fois** ; `expiries.delete` inerte supprimé ; deux affirmations
+  fausses corrigées à leur source, dont une dans le CHANGELOG qui promettait
+  qu'une plage débordante est abandonnée alors qu'elle est clampée et peinte.
+
+**Défaut trouvé au runtime, invisible à la lecture et à la suite unitaire.**
+Un saut vers un match **déjà en train de flasher** arrivait sur un surlignage
+quasi invisible : alpha mesuré 0,09–0,12 au lieu de 0,45, et extinction complète
+530 ms après le saut alors que le span restait 1 200 ms dans le DOM. Cause
+racine : le renderer inline de CodeMirror réutilise le **même élément DOM** pour
+une marque qui compare égale (`this.cache.find(MarkTile, m => m.mark.eq(mark))`).
+Une animation CSS appartient à l'élément, pas à la décoration : elle ne
+redémarrait jamais et portait le temps écoulé du flash précédent, pendant qu'une
+minuterie neuve de 1 200 ms était armée. Le commentaire du fichier affirmait
+exactement l'inverse — c'est pourquoi rien ne paraissait anormal à la lecture.
+Corrigé par un numéro de série par flash porté en attribut, qui fait manquer le
+cache. Après correctif : `currentTime` à 0 à l'arrivée, alpha exactement 0,45.
+Atteignable à la main, pas hypothétique : le scénario e2e l'a déclenché en étant
+simplement placé après un test qui fait le même saut.
+
+**Risques résiduels assumés :**
+
+- **`prefers-reduced-motion` n'est pas prouvé de bout en bout.** La règle existe
+  et la couleur de repos est mesurée à pleine intensité, mais faire matcher la
+  media query depuis le harnais s'est avéré impossible : `com.apple.universalaccess`
+  refuse l'écriture, et `com.apple.Accessibility` seul ne bouge pas `matchMedia`.
+- **Trois choses que le flash ne peint pas, toutes acceptées**, documentées dans
+  `docs/editor.md` : une plage qui chevauche le bord de la fenêtre de snippet est
+  rognée côté Rust, donc un mot peut s'afficher à moitié surligné (« on flashe ce
+  qu'on t'a montré ») ; une plage sous une `Decoration.replace` — image repliée,
+  mermaid, math, bloc de code — ne peint rien ; les plages tombent sur des
+  frontières de points de code, pas de graphèmes, donc un flash peut couper une
+  séquence ZWJ (même limite que `splitHighlightRanges`, assumée en slice 3).
+- La sortie anticipée de `lineFlashRanges` est équivalente sur la sortie : sa
+  suppression est un pic de latence, pas un échec, et aucun test ne l'attrape.
+- La minuterie dispatche encore son extinction après un swap qui a déjà vidé le
+  champ. Inoffensif ; relier le chemin de transaction au chemin de minuterie pour
+  économiser une transaction sans effet coûterait plus que ça ne rapporte.
+
+**Vérification** (depuis `apps/desktop/`, `apps/desktop/src-tauri/`) :
+
+```
+../../node_modules/.bin/vp check   → exit 0 — 0 errors, 1 warning (e2e/wdio.conf.js, préexistant)
+../../node_modules/.bin/vp test    → exit 0 — 56 fichiers, 697 tests passés (692 avant remédiation, 675 avant la slice)
+cargo test                         → exit 0 — 207 passés (205 avant la slice)
+cargo clippy                       → exit 0 — 11 warnings préexistants, aucun dans content_search.rs
+cargo fmt --check                  → exit 0
+```
+
+**Vérification runtime — faite.** `content-search.spec.js` passe de 12 à
+**13 scénarios**, onze exécutions consécutives toutes vertes, suite rejouable.
+Rouge/vert mesuré sur le scénario durci :
+
+| Mutation                                         | Résultat |
+| ------------------------------------------------ | -------- |
+| `.cm-match-flash` renommé dans la CSS            | attrapée |
+| `matchFlashField` retiré du registre             | attrapée |
+| durée littérale `20000ms` au lieu de la variable | attrapée |
+| correctif du numéro de série annulé              | attrapée |
+
+Le scénario tel qu'écrit avant la passe runtime laissait **survivre** la
+troisième : son garde comparait la couleur à la chaîne `rgba(0, 0, 0, 0)`, que
+WebKit ne produit jamais pour un fond animé — il rapporte `oklab(…)`. Le garde ne
+pouvait donc attraper aucun fondu. Durci en lisant l'alpha.
+
+À l'œil, sur capture : un surlignage à la manière d'un marqueur, tenu à plat
+600 ms puis fondu sur 600 ms, sur les tokens seuls et sans décalage de métriques.
+
+**Suite e2e complète — un échec préexistant, hors périmètre.** Le correctif
+touche une extension CodeMirror partagée par tous les panneaux, donc la suite
+entière a été lancée, pas seulement `content-search.spec.js`.
+`latex-math.spec.js` échoue sur ses 4 scénarios, le premier étant « opens the
+seeded document from the sidebar » — le document ne s'ouvre jamais et les trois
+autres en cascadent. **Vérifié préexistant** : l'échec est identique sur `HEAD`
+sans la slice 6 (travail remisé, bundle reconstruit, même sortie), donc ni
+l'ajout de `matchFlashField` à la liste d'extensions ni le reste de la slice n'en
+sont la cause. À traiter séparément ; noté dans `TODOS.md`.
+
+Piège d'outillage à connaître avant de relancer : le bundle e2e **ne se
+construit pas** avec un `cargo tauri build` nu. Il faut le script de
+`e2e/package.json` — `--features e2e --bundles app`, plus le `--config` qui
+change l'identifiant et coupe les artefacts d'updater. Sans la feature, le plugin
+WebDriver est absent, l'app se lance sans écouter, et wdio meurt en timeout de
+création de session — un symptôme qui ne nomme pas sa cause. Un build nu
+**écrase** en prime le bundle valide.
 
 ## Intendance
 

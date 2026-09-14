@@ -1,5 +1,6 @@
 import type { ContentSearchSession } from "@/lib/content-search-session";
 import { getParentDir } from "@/lib/paths";
+import type { PendingTarget } from "@/lib/pending-target";
 import type { ContentSearchResult } from "@/types/fs";
 
 /** Filename search runs from the first character; a content scan reads the
@@ -23,6 +24,21 @@ export interface ContentResultGroup {
 /** cmdk keys its selection on `value`, and a file can yield several hits. */
 export function contentRowValue(result: ContentSearchResult): string {
   return `${result.path}:${result.line_number}`;
+}
+
+/** Where opening a result takes the editor. The row's ranges are relative to
+ *  the snippet, which may be a window cut out of the line; the editor holds the
+ *  whole line, so the window offset is applied here and the carrier never
+ *  learns that snippets have windows. */
+export function contentResultTarget(result: ContentSearchResult): PendingTarget {
+  return {
+    kind: "line",
+    line: result.line_number,
+    matchRanges: result.match_ranges.map(
+      ([start, end]) =>
+        [start + result.line_content_offset, end + result.line_content_offset] as const,
+    ),
+  };
 }
 
 /** `getParentDir` answers `/` for a name with no directory — true of an

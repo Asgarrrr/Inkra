@@ -45,6 +45,44 @@
   background-color: var(--editor-selection-bg);
 }
 
+/* What a jump from the content search highlights on arrival: the ranges that
+   matched, held long enough to be found and then faded out. Stronger than the
+   selection tint, which the same accent paints at 30%, so the two don't read as
+   the same thing.
+
+   `--match-flash-duration` is pushed onto the span by `match-flash.ts` from
+   `MATCH_FLASH_MS`, the moment the decoration is removed. A duration written
+   here instead would drift from it: too long leaves a mark nobody can see, too
+   short cuts the fade off mid-way.
+
+   Nothing in these rules may change the line's metrics — no padding, no border,
+   no font-size, no font-weight. `jumpToPos` dispatches the flash after it has
+   measured where to land, and its drift correction re-measures against the
+   heights the jump aimed at. */
+@keyframes cm-match-flash {
+  0%,
+  50% {
+    background-color: var(--editor-match-flash-bg);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.cm-editor .cm-match-flash {
+  /* Also the resting state when the animation does not run — reduced motion
+     below, or a missing duration: visible until the decoration goes away. */
+  background-color: var(--editor-match-flash-bg);
+  border-radius: 2px;
+  animation: cm-match-flash var(--match-flash-duration) ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-editor .cm-match-flash {
+    animation: none;
+  }
+}
+
 /* Editor layout — let parent handle scrolling */
 .cm-editor {
   height: auto;

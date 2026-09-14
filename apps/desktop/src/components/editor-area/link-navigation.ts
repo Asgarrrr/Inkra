@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { type Extension, Prec, type Text } from "@codemirror/state";
+import { type Extension, type Line, Prec, type Text } from "@codemirror/state";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 import * as editorApi from "@/hooks/editor-api";
 import { getWorkspaceRoot } from "@/hooks/workspace-api";
@@ -14,7 +14,8 @@ import {
 } from "@/lib/pending-target";
 import { linkUrlAt, rawUrlAt } from "@/lib/prosemark-core/links";
 import * as tauri from "@/lib/tauri";
-import { findOuterScroller, jumpToPos } from "./editor-scroll";
+import { findOuterScroller, type JumpTarget, jumpToPos } from "./editor-scroll";
+import type { FlashRange } from "./match-flash";
 import { getEditorView } from "./editor-view-registry";
 import { showEditorNotice } from "./editor-notice-store";
 
@@ -25,15 +26,20 @@ function findHeadingBySlug(content: string, slug: string): DocumentHeading | und
 /** The only place a target kind is decoded. Takes the document rather than its
  *  text: a line target resolves through `doc.line`, and re-deriving line starts
  *  from a string would have to mirror CodeMirror's `DefaultSplit` exactly. */
-export function targetDocPos(doc: Text, target: PendingTarget): number | null {
+export function resolveTarget(doc: Text, target: PendingTarget): JumpTarget | null {
   switch (target.kind) {
-    case "heading":
-      return findHeadingBySlug(doc.toString(), target.slug)?.pos ?? null;
-    case "line":
+    case "heading": {
+      const pos = findHeadingBySlug(doc.toString(), target.slug)?.pos;
+      // Anchors flash nothing: the heading is the destination, not a match.
+      return pos === undefined ? null : { pos, flash: [] };
+    }
+    case "line": {
       // `line` counts lines in the file on disk, which can have shrunk between
       // the scan and the click. Clamping covers that one case; it does not make
       // `doc.line` total, and every producer today is a Rust `u32`.
-      return doc.line(Math.min(Math.max(target.line, 1), doc.lines)).from;
+      const line = doc.line(Math.min(Math.max(target.line, 1), doc.lines));
+      return { pos: line.from, flash: lineFlashRanges(line, target.matchRanges) };
+    }
     default: {
       const exhaustive: never = target;
       return exhaustive;
@@ -41,12 +47,51 @@ export function targetDocPos(doc: Text, target: PendingTarget): number | null {
   }
 }
 
+/** Codepoint offsets into `line` to document ranges, which CodeMirror counts in
+ *  UTF-16 units — an accent shifts by one, an emoji by two. One pass over the
+ *  line: the source line a windowed snippet came from can be megabytes long, so
+ *  a slice per range is quadratic. */
+function lineFlashRanges(
+  line: Line,
+  ranges: readonly (readonly [number, number])[],
+): readonly FlashRange[] {
+  // Sorted, so one cursor over the line resolves every offset: an unsorted
+  // `wanted` leaves the offsets before the cursor to the tail loop below, which
+  // pins them all to the end of the line and collapses their ranges.
+  const wanted = [...new Set(ranges.flat())].sort((a, b) => a - b);
+  const utf16 = new Map<number, number>();
+  let next = 0;
+  let codepoint = 0;
+  let offset = 0;
+
+  for (const char of line.text) {
+    while (next < wanted.length && wanted[next] <= codepoint) utf16.set(wanted[next++], offset);
+    // A line can be megabytes of base64 or minified JSON; walking the rest of
+    // it once every offset is resolved costs milliseconds inside the jump's
+    // animation frame.
+    if (next === wanted.length) break;
+    codepoint++;
+    offset += char.length;
+  }
+  // Whatever is left addresses text the line no longer has — the file changed
+  // between the scan and the click — and lands on its end, where it is empty.
+  while (next < wanted.length) utf16.set(wanted[next++], offset);
+
+  const flash: FlashRange[] = [];
+  for (const [start, end] of ranges) {
+    const from = line.from + utf16.get(start)!;
+    const to = line.from + utf16.get(end)!;
+    if (to > from) flash.push({ from, to });
+  }
+  return flash;
+}
+
 /** Scrolls `view` to `target`, or reports false when it could not: a destroyed
  *  view stays registered until its pane's cleanup runs, and its detached dom
  *  has no scroller. */
 function scrollLiveView(view: EditorView, filePath: string, target: PendingTarget): boolean {
-  const pos = targetDocPos(view.state.doc, target);
-  if (pos === null) {
+  const resolved = resolveTarget(view.state.doc, target);
+  if (resolved === null) {
     if (target.kind === "heading") {
       showEditorNotice(`Heading "#${target.slug}" not found in this document`);
     }
@@ -54,7 +99,7 @@ function scrollLiveView(view: EditorView, filePath: string, target: PendingTarge
   }
   const scroller = findOuterScroller(view.dom);
   if (!scroller) return false;
-  jumpToPos(view, scroller, filePath, pos);
+  jumpToPos(view, scroller, filePath, resolved);
   return true;
 }
 

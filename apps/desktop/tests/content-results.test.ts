@@ -2,6 +2,7 @@ import { describe, expect, test } from "vite-plus/test";
 
 import {
   contentParentDir,
+  contentResultTarget,
   contentRowValue,
   contentSearchQuery,
   contentSection,
@@ -25,6 +26,7 @@ function hit(
     line_number: lineNumber,
     line_content: "needle here",
     match_ranges: [[0, 6]],
+    line_content_offset: 0,
     line_truncated: false,
     score,
     ...overrides,
@@ -95,6 +97,38 @@ describe("grouping", () => {
     expect(contentParentDir("README.md")).toBe("");
     expect(contentParentDir("notes/deep.md")).toBe("notes");
     expect(contentParentDir("a/b/c.md")).toBe("a/b");
+  });
+});
+
+describe("opening a result", () => {
+  test("carries the line and its match ranges", () => {
+    const target = contentResultTarget(
+      hit("notes.md", 12, 5, {
+        match_ranges: [
+          [0, 6],
+          [7, 11],
+        ],
+      }),
+    );
+
+    expect(target).toEqual({
+      kind: "line",
+      line: 12,
+      matchRanges: [
+        [0, 6],
+        [7, 11],
+      ],
+    });
+  });
+
+  test("rebases the ranges of a windowed snippet onto the source line", () => {
+    // The scan cut a window out of a long line and rebased the ranges into it;
+    // the editor holds the whole line, so the window offset goes back on here.
+    const target = contentResultTarget(
+      hit("notes.md", 12, 5, { match_ranges: [[40, 46]], line_content_offset: 961 }),
+    );
+
+    expect(target).toEqual({ kind: "line", line: 12, matchRanges: [[1001, 1007]] });
   });
 });
 

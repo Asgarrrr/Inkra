@@ -14,6 +14,13 @@ const QUERY = "throughput";
 // `scrollPosToSafeTop` puts the target line, measured from the scroller's top.
 const SAFE_MARGIN = 140;
 
+// Mirrors MATCH_FLASH_MS (match-flash.ts): how long the arrival highlight stays.
+const MATCH_FLASH_MS = 1200;
+
+// Mirrors --editor-match-flash-bg (App.css): the accent mixed 45% into
+// transparent, which the keyframes hold for the first half of the flash.
+const FLASH_PEAK_ALPHA = 0.45;
+
 const BIG_FILE = "big-images-tables.md";
 const ANCHOR_FILE = "anchor-jump.md";
 const FRONTMATTER_FILE = "frontmatter-deep.md";
@@ -381,6 +388,36 @@ async function openContentResult(name, marker) {
   await clickPaletteRow(contentRowFor(name, markerLine[marker]), `${name}:${markerLine[marker]}`);
 }
 
+/** What the flash is painting right now. The class is pinned in `match-flash.ts`
+ *  and styled in `prosemark-theme.css`; only a real render proves the two still
+ *  agree, so the computed background is part of the answer. A mark can be split
+ *  across several spans by other decorations, hence the join.
+ *
+ *  `alpha` is parsed rather than the colour compared to a string: WebKit reports
+ *  a background mid-animation as `oklab(… / a)` and an unstyled one as
+ *  `rgba(0, 0, 0, 0)`, so only the alpha is common ground between the two. */
+async function flashState() {
+  return browser.execute(() => {
+    const spans = [...document.querySelectorAll(".cm-match-flash")];
+    const background = spans.length ? getComputedStyle(spans[0]).backgroundColor : null;
+    let alpha = null;
+    if (background) {
+      const inside = background.replace(/^[^(]*\(|\)\s*$/g, "");
+      // `oklab(l a b / alpha)` puts alpha behind a slash, `rgba(r, g, b, a)`
+      // fourth in a comma list, and an opaque colour states none at all.
+      if (inside.includes("/")) alpha = Number.parseFloat(inside.split("/")[1]);
+      else if (inside.split(",").length > 3) alpha = Number.parseFloat(inside.split(",")[3]);
+      else alpha = 1;
+    }
+    return {
+      count: spans.length,
+      text: spans.map((el) => el.textContent || "").join(""),
+      background,
+      alpha,
+    };
+  });
+}
+
 async function openFileRow(name) {
   await pressKey("p");
   await $("[cmdk-input]").waitForExist({ timeout: 5_000 });
@@ -553,6 +590,50 @@ describe("Content search palette", function () {
     await openContentResult(BIG_FILE, BIG_ALPHA);
     await $("[cmdk-input]").waitForExist({ timeout: 5_000, reverse: true });
     strictEqual(await $("[cmdk-input]").isExisting(), false, "the palette stayed open");
+  });
+
+  it("highlights the matched words on arrival, then puts them out", async function () {
+    await openContentResult(BIG_FILE, BIG_ALPHA);
+
+    let lit = await flashState();
+    await browser.waitUntil(
+      async () => {
+        lit = await flashState();
+        return lit.count > 0;
+      },
+      { timeout: 5_000, timeoutMsg: "the jump landed without highlighting anything" },
+    );
+    strictEqual(lit.text, BIG_ALPHA, "the highlight covered something other than the match");
+    // The flash has to arrive at full strength. A transparent span means the
+    // class and the stylesheet have parted ways; a faint one means this jump
+    // inherited the previous jump's fade instead of starting its own. The
+    // keyframes hold FLASH_PEAK_ALPHA for the first half of MATCH_FLASH_MS and
+    // the span is measured within ~15 ms of the click, so the margin is the
+    // whole 600 ms hold.
+    ok(
+      lit.alpha >= FLASH_PEAK_ALPHA - 0.05,
+      `the flash arrived faded or unpainted: ${lit.background}`,
+    );
+
+    // Sample the whole life of the span: the fade has to have run its course by
+    // the time the decoration is removed, which is the contract that ties the
+    // CSS duration to MATCH_FLASH_MS. A duration written straight into the
+    // stylesheet drifts from it and is only visible here.
+    let last = lit;
+    await browser.waitUntil(
+      async () => {
+        const now = await flashState();
+        if (now.count === 0) return true;
+        last = now;
+        return false;
+      },
+      {
+        timeout: MATCH_FLASH_MS + 3_000,
+        interval: 0,
+        timeoutMsg: `the highlight was still there ${MATCH_FLASH_MS} ms after the jump`,
+      },
+    );
+    ok(last.alpha <= 0.02, `the flash was still painting ${last.background} when it was removed`);
   });
 
   it("scrolls the document already on screen without reopening it", async function () {

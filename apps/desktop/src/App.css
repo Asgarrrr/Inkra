@@ -92,6 +92,7 @@
 
   --link-color: var(--accent);
   --editor-selection-bg: color-mix(in srgb, var(--accent) 30%, transparent);
+  --editor-match-flash-bg: color-mix(in srgb, var(--accent) 45%, transparent);
 
   /* Select chevron uses fg-base via color-mix in fill — but SVG `stroke` can't
      consume CSS vars, so we recreate via stroke= with currentColor and apply

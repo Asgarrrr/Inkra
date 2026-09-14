@@ -10,6 +10,7 @@ function match(relativePath: string, lineNumber: number): ContentSearchResult {
     line_number: lineNumber,
     line_content: "needle here",
     match_ranges: [[0, 6]],
+    line_content_offset: 0,
     line_truncated: false,
     score: 1,
   };

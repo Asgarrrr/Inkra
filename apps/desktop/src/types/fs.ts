@@ -43,6 +43,10 @@ export interface ContentSearchResult {
   /** Codepoint offsets into `line_content`, never UTF-16 indices — slice with
    *  `Array.from`, never `String.prototype.slice`. */
   match_ranges: [number, number][];
+  /** Codepoint offset of `line_content` within the source line, 0 unless the
+   *  line was windowed. Add it to a range to address the line the editor
+   *  holds. */
+  line_content_offset: number;
   /** `line_content` is a window cut out of a longer source line. */
   line_truncated: boolean;
   score: number;

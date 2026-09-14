@@ -1,7 +1,16 @@
 import type { EditorView } from "@codemirror/view";
 import * as editorApi from "@/hooks/editor-api";
 import { EDITOR_SAFE_SCROLL_MARGIN } from "./editor-scroll-container";
+import { type FlashRange, flashMatchRanges } from "./match-flash";
 import { parseThrough } from "./viewport-parse";
+
+/** Where a jump goes and what it highlights once it is there. */
+export interface JumpTarget {
+  pos: number;
+  /** Document ranges to flash on arrival; empty for a destination that is not
+   *  a match, such as a heading anchor. */
+  flash: readonly FlashRange[];
+}
 
 /** The nearest ancestor of `root` that actually scrolls. Writer's `.cm-scroller`
  *  is `overflow: visible`; the real scroller is `EditorScrollContainer`. */
@@ -55,15 +64,27 @@ const MAX_SCROLL_CORRECTIONS = 2;
 // pixel, so exact equality is never reached. CodeMirror draws the same band.
 const SCROLL_DEAD_BAND_PX = 1;
 
-/** `scrollPosToSafeTop` with the same write-back, plus the parse and the drift
- *  correction a jump outside the rendered viewport needs. */
-export function jumpToPos(view: EditorView, scroller: HTMLElement, filePath: string, pos: number) {
+/** `scrollPosToSafeTop` with the same write-back, plus the parse, the flash and
+ *  the drift correction a jump outside the rendered viewport needs. */
+export function jumpToPos(
+  view: EditorView,
+  scroller: HTMLElement,
+  filePath: string,
+  target: JumpTarget,
+) {
+  const { pos } = target;
   // Heights in an unparsed region are estimates: aiming at them lands next to
   // the line once its decorations materialise.
   parseThrough(view, pos);
   scrollPosToSafeTop(view, scroller, pos, "auto");
   const landedAt = scroller.scrollTop;
   editorApi.updateScrollPos(filePath, landedAt);
+  // Unconditional: this is also the only way a flash goes out early, so a jump
+  // with nothing to light has to put out the one lit on the line it just left.
+  // After the scroll, so the transaction cannot land between the parse and the
+  // measurement it feeds; decoration marks change no heights, so the correction
+  // below still measures what the jump aimed at.
+  flashMatchRanges(view, target.flash);
   correctDrift(view, scroller, filePath, pos, landedAt);
 }
 

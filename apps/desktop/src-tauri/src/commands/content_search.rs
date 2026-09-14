@@ -52,6 +52,10 @@ pub struct ContentMatch {
     pub line_content: String,
     /// Codepoint offsets into `line_content`, never bytes.
     pub match_ranges: Vec<(u32, u32)>,
+    /// Codepoint offset of `line_content` within the source line, `0` unless the
+    /// line was windowed. Without it the ranges are unusable against the line
+    /// the editor holds.
+    pub line_content_offset: u32,
     /// `line_content` is a window cut out of a longer source line.
     pub line_truncated: bool,
     pub score: u32,
@@ -279,10 +283,17 @@ fn split_lines(body: &str) -> impl Iterator<Item = &str> + '_ {
     })
 }
 
+struct SnippetWindow {
+    content: String,
+    ranges: Vec<(u32, u32)>,
+    /// Codepoint offset of `content` in the line it was cut from.
+    offset: u32,
+}
+
 /// Emit a window of the line around its first match instead of the whole line,
 /// rebasing the ranges into window coordinates. Returns `None` when the line
 /// already fits.
-fn snippet_window(line: &str, ranges: &[(u32, u32)]) -> Option<(String, Vec<(u32, u32)>)> {
+fn snippet_window(line: &str, ranges: &[(u32, u32)]) -> Option<SnippetWindow> {
     let char_len = line.chars().count();
     if char_len <= MAX_SNIPPET_CHARS {
         return None;
@@ -307,7 +318,11 @@ fn snippet_window(line: &str, ranges: &[(u32, u32)]) -> Option<(String, Vec<(u32
             })
         })
         .collect();
-    Some((content, rebased))
+    Some(SnippetWindow {
+        content,
+        ranges: rebased,
+        offset: start as u32,
+    })
 }
 
 struct LineHit {
@@ -315,6 +330,7 @@ struct LineHit {
     distinct_tokens: usize,
     line_content: String,
     ranges: Vec<(u32, u32)>,
+    line_content_offset: u32,
     line_truncated: bool,
 }
 
@@ -367,15 +383,17 @@ fn scan_file(
             heading_hit = true;
         }
         let ranges = merge_ranges(ranges);
-        let (line_content, ranges, line_truncated) = match snippet_window(line, &ranges) {
-            Some((content, rebased)) => (content, rebased, true),
-            None => (line.to_string(), ranges, false),
-        };
+        let (line_content, ranges, line_content_offset, line_truncated) =
+            match snippet_window(line, &ranges) {
+                Some(window) => (window.content, window.ranges, window.offset, true),
+                None => (line.to_string(), ranges, 0, false),
+            };
         lines.push(LineHit {
             line_number,
             distinct_tokens,
             line_content,
             ranges,
+            line_content_offset,
             line_truncated,
         });
     }
@@ -457,6 +475,7 @@ pub fn content_search_impl(
                 line_number: hit.line_number,
                 line_content: hit.line_content,
                 match_ranges: hit.ranges,
+                line_content_offset: hit.line_content_offset,
                 line_truncated: hit.line_truncated,
                 score,
             });
@@ -1017,6 +1036,49 @@ mod tests {
     }
 
     #[test]
+    fn test_content_search_window_offset_rebases_onto_the_source_line() {
+        let dir = TempDir::new().unwrap();
+        // Leading multibyte char: a byte/codepoint mix-up shifts the offset.
+        let line = format!("é{}néedle{}", "x".repeat(1_000), "y".repeat(1_000));
+        let files = [indexed(&dir, "long.md", &format!("{line}\nnéedle\n"))];
+
+        let results = search(&files, "néedle");
+
+        let windowed = results.iter().find(|m| m.line_number == 1).unwrap();
+        let offset = windowed.line_content_offset;
+        // The match starts at codepoint 1001, less the 40 codepoints of lead-in.
+        assert_eq!(offset, 961);
+        assert_eq!(windowed.match_ranges, Vec::from([(40, 46)]));
+        for &(start, end) in &windowed.match_ranges {
+            assert_eq!(slice_chars(&line, offset + start, offset + end), "néedle");
+        }
+
+        let short = results.iter().find(|m| m.line_number == 2).unwrap();
+        assert_eq!(short.line_content_offset, 0);
+        for &(start, end) in &short.match_ranges {
+            assert_eq!(slice_chars("néedle", start, end), "néedle");
+        }
+    }
+
+    #[test]
+    fn test_content_search_window_offset_when_the_window_hits_the_line_end() {
+        let dir = TempDir::new().unwrap();
+        // 507 codepoints, match at 501: the lead-in would run past the end, so
+        // the window is pinned to the last MAX_SNIPPET_CHARS of the line.
+        let line = format!("é{}néedle", "x".repeat(500));
+        let files = [indexed(&dir, "tail.md", &format!("{line}\n"))];
+
+        let hit = &search(&files, "néedle")[0];
+
+        let offset = hit.line_content_offset;
+        assert_eq!(offset as usize, line.chars().count() - MAX_SNIPPET_CHARS);
+        assert_eq!(hit.match_ranges, Vec::from([(394, 400)]));
+        for &(start, end) in &hit.match_ranges {
+            assert_eq!(slice_chars(&line, offset + start, offset + end), "néedle");
+        }
+    }
+
+    #[test]
     fn test_split_lines_matches_codemirror_default_split() {
         // CodeMirror's DefaultSplit; no `lineSeparator` facet is configured.
         let re = regex_lite::Regex::new(r"\r\n?|\n").unwrap();
@@ -1470,6 +1532,7 @@ mod tests {
                 line_number: 3,
                 line_content: String::from("needle here"),
                 match_ranges: Vec::from([(0, 6)]),
+                line_content_offset: 12,
                 line_truncated: true,
                 score: 4_000_500,
             }])),
