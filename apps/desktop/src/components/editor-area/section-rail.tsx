@@ -12,13 +12,12 @@ import { EDITOR_SCROLLBAR_GUTTER } from "./editor-scroll-container";
 import { scrollPosToSafeTop } from "./editor-scroll";
 import "./section-rail.css";
 
-const INACTIVE_WIDTH = 10;
-const ACTIVE_WIDTH = 20;
-const INACTIVE_TICK_SCALE = INACTIVE_WIDTH / ACTIVE_WIDTH;
+// Every tick is the same width; the active one is told apart by opacity alone.
+const TICK_WIDTH = 12;
 const TICK_HEIGHT = 1;
 const TICK_GAP = 6;
-const RAIL_EDGE_INSET = 12;
-const RAIL_INNER_WIDTH = ACTIVE_WIDTH + 2;
+const RAIL_EDGE_INSET = 8;
+const RAIL_INNER_WIDTH = TICK_WIDTH + 2;
 const RAIL_ZONE_WIDTH = RAIL_EDGE_INSET + RAIL_INNER_WIDTH;
 const POPOVER_WIDTH = 260;
 const POPOVER_EDGE_INSET = RAIL_EDGE_INSET;
@@ -123,12 +122,11 @@ export function SectionRail({ filePath, view, scrollContainerRef }: SectionRailP
             {headings.map((heading, i) => {
               const isActive = i === activeIndex;
               const tickStyle: CSSProperties = {
-                width: ACTIVE_WIDTH,
+                width: TICK_WIDTH,
                 height: TICK_HEIGHT,
                 background: "currentColor",
                 opacity: isActive ? 1 : 0.35,
-                transform: isActive ? "scaleX(1)" : `scaleX(${INACTIVE_TICK_SCALE})`,
-                transition: "transform 300ms ease-in, opacity 300ms ease-in",
+                transition: "opacity 300ms ease-in",
                 pointerEvents: "auto",
               };
               return (
