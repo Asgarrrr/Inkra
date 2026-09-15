@@ -2,12 +2,12 @@
 
 ## Goal
 
-Cmd+W with no file open should put the window away instead of doing nothing visible. The window is hidden, not destroyed, so the app stays running the macOS way and a Dock click brings it straight back with its workspace and tabs intact.
+Cmd+W when only the launcher tab is left should put the window away instead of doing nothing visible. The window is hidden, not destroyed, so the app stays running the macOS way and a Dock click brings it straight back with its workspace and tabs intact.
 
 ## Behavior
 
-- Cmd+W with at least one file tab open closes the active tab, as before.
-- Cmd+W with no file tab open (launcher and/or settings tabs only) requests a window close.
+- Cmd+W with any tab other than a lone launcher (file tabs, the Settings tab, extra launcher tabs) closes the active tab, as before.
+- Cmd+W when the launcher is the only tab left requests a window close. Closing that tab would only recreate it.
 - A close request on the main window (Cmd+W, the red traffic light, Window → Close) hides it. Secondary workspace windows and standalone file windows still close for real.
 - Clicking the Dock icon with no visible window shows the main window again.
 - Opening a file or workspace from Finder, the Dock menu, or a second `writer` launch while the main window is hidden reveals it when the open lands in that window. Opens routed to a new window leave the hidden one alone.

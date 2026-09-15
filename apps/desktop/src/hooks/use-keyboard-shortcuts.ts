@@ -55,14 +55,16 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd+W — close current tab. With no file open there is nothing
-      // left to close, so close the window instead; Rust turns that into
-      // a hide for the main window (see `attach_window_handlers`).
+      // Cmd+W — close current tab. Once the launcher is the only tab left
+      // there is nothing to close (closing it would just recreate it), so
+      // close the window instead; Rust turns that into a hide for the main
+      // window (see `attach_window_handlers`). Any other tab, including
+      // Settings, closes like a file tab.
       if (mod && e.key === "w") {
         if (isCompactFileMode) return;
         e.preventDefault();
-        const hasFileOpen = tabs.some((tab) => tab.location.kind === "file");
-        if (!hasFileOpen) {
+        const onlyLauncherLeft = tabs.every((tab) => tab.location.kind === "launcher");
+        if (onlyLauncherLeft && tabs.length <= 1) {
           void closeWindow();
           return;
         }
