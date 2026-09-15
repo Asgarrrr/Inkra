@@ -47,14 +47,29 @@ fn queue_open_event(app: &tauri::AppHandle, label: &str, payload: PendingOpenPay
     let _ = app.emit_to(label, "open:from-drop", payload);
 }
 
+/// Show a window and bring it forward. `set_focus` alone does nothing for a
+/// window the user hid with the last Cmd+W, so every "focus the existing
+/// window" path goes through here.
+fn reveal_window(window: &WebviewWindow) {
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
 /// Wire up per-window event handlers: drag-drop routes to the window's own
-/// pending-open queue, and the close/destroy event tears down the window's
-/// `WorkspaceState` (which drops the watcher, stopping FSEvents / inotify
-/// subscriptions).
+/// pending-open queue, a close request on the main window hides it instead
+/// of destroying it (destroying the last window would quit the app; hiding
+/// keeps its state so a Dock click brings it straight back), and the destroy
+/// event tears down the window's `WorkspaceState` (which drops the watcher,
+/// stopping FSEvents / inotify subscriptions).
 fn attach_window_handlers(app: &tauri::AppHandle, window: &WebviewWindow) {
     let label = window.label().to_string();
     let handle = app.clone();
+    let this_window = window.clone();
     window.on_window_event(move |event| match event {
+        WindowEvent::CloseRequested { api, .. } if label == MAIN_WINDOW_LABEL => {
+            api.prevent_close();
+            let _ = this_window.hide();
+        }
         WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => {
             for path in paths {
                 if let Some(payload) = resolve_path(path) {
@@ -100,7 +115,7 @@ pub(crate) fn open_new_workspace_window(
 
     if let Some(existing_label) = app.state::<AppState>().find_by_workspace(&workspace) {
         if let Some(window) = app.get_webview_window(&existing_label) {
-            let _ = window.set_focus();
+            reveal_window(&window);
             queue_open_event(
                 app,
                 &existing_label,
@@ -144,7 +159,7 @@ pub(crate) fn open_standalone_file_window(
 
     if let Some(existing_label) = app.state::<AppState>().find_by_standalone_file(&file) {
         if let Some(window) = app.get_webview_window(&existing_label) {
-            let _ = window.set_focus();
+            reveal_window(&window);
             return Ok(());
         }
     }
@@ -457,13 +472,13 @@ fn handle_single_instance(app: &tauri::AppHandle, argv: Vec<String>) {
         None => {
             // Re-launch with no path: bring an existing window forward.
             if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-                let _ = window.set_focus();
+                reveal_window(&window);
                 return;
             }
             // Fallback: focus any known window.
             if let Some(label) = app.state::<AppState>().labels().first() {
                 if let Some(window) = app.get_webview_window(label) {
-                    let _ = window.set_focus();
+                    reveal_window(&window);
                 }
             }
         }
@@ -605,6 +620,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {
+            // Dock click with every window hidden or closed: bring the main
+            // window back. It is only ever hidden (never destroyed) by the
+            // close-requested handler, so it still holds its workspace.
+            #[cfg(target_os = "macos")]
+            if let RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = &_event
+            {
+                if let Some(window) = _app.get_webview_window(MAIN_WINDOW_LABEL) {
+                    reveal_window(&window);
+                }
+            }
+
             // On macOS, dragging a folder/file to the dock icon sends file:// URLs
             // via the RunEvent::Opened event. The variant only exists in the
             // macOS build of Tauri, so the handler must be gated behind a cfg.
@@ -630,7 +659,7 @@ pub fn run() {
                                     } else if let Some(window) = _app.get_webview_window(&label) {
                                         // Standalone window already hosts this
                                         // exact file — just bring it forward.
-                                        let _ = window.set_focus();
+                                        reveal_window(&window);
                                     }
                                 }
                                 None => {

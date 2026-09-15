@@ -4,6 +4,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toggleSidebar } from "@/hooks/use-sidebar";
 import { getWorkspaceChromeMode } from "@/lib/compact-mode";
+import { closeWindow } from "@/lib/tauri";
 
 function isEditableTargetFocused(): boolean {
   const active = document.activeElement;
@@ -54,10 +55,17 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd+W — close current tab
+      // Cmd+W — close current tab. With no file open there is nothing
+      // left to close, so close the window instead; Rust turns that into
+      // a hide for the main window (see `attach_window_handlers`).
       if (mod && e.key === "w") {
         if (isCompactFileMode) return;
         e.preventDefault();
+        const hasFileOpen = tabs.some((tab) => tab.location.kind === "file");
+        if (!hasFileOpen) {
+          void closeWindow();
+          return;
+        }
         if (activeTabId) closeActiveTab();
         return;
       }
