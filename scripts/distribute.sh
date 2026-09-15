@@ -131,16 +131,21 @@ if [ -z "$VP_BIN" ]; then
 fi
 
 if [ "$UNSIGNED" -eq 1 ]; then
-  # tauri-cli decides whether to sign, and whether to notarize, purely from
-  # these variables. `.env` has just been sourced, so any value sitting in it
-  # would reach the build and produce a half-signed bundle that fails late
-  # rather than the unsigned one that was asked for. Clear them explicitly.
-  unset APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+  # Ad-hoc sign rather than leave the bundle bare. With no identity at all the
+  # linker signs the inner binary but no `_CodeSignature` seal is written, and
+  # `codesign --verify` rejects the bundle outright — macOS surfaces that as
+  # "damaged", which right-clicking does not get past. Identity `-` produces a
+  # seal that is valid and self-consistent, merely signed by no authority.
+  export APPLE_SIGNING_IDENTITY="-"
+
+  # tauri-cli infers notarization from these, so clearing them is what skips
+  # it. It also stops a stale `.env` from half-configuring an Apple submission.
+  unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
   unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD
   unset APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_PATH
 
-  echo "warning: building UNSIGNED — macOS will block this app on first open."
-  echo "         Users must right-click the app and choose Open once."
+  echo "warning: building ad-hoc signed and unnotarized — macOS blocks this on"
+  echo "         first open, and users must clear quarantine by hand."
   echo ""
 else
   # Signing and notarization both need a Developer ID Application identity,
@@ -218,18 +223,28 @@ BUNDLE_DIR="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle"
 DMG_DIR="$BUNDLE_DIR/dmg"
 MACOS_DIR="$BUNDLE_DIR/macos"
 
-DMG_FILE=$(ls "$DMG_DIR"/*.dmg 2>/dev/null | head -1 || true)
-TAR_FILE=$(ls "$MACOS_DIR"/*.app.tar.gz 2>/dev/null | head -1 || true)
-SIG_FILE=$(ls "$MACOS_DIR"/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
+# `bundle/` is never cleaned between builds, so it accumulates artifacts from
+# earlier versions and even earlier product names. Taking the first glob match
+# would pick `Inkra_0.6.0` ahead of `Inkra_0.7.0` on the next release and
+# publish the previous binary under the new tag, with nothing to signal it.
+# Pin every artifact to the product name and the version being released.
+PRODUCT_NAME=$(python3 -c "import json; print(json.load(open('$TAURI_CONF'))['productName'])")
 
-if [ -z "$DMG_FILE" ]; then
-  echo "Error: No DMG found in $DMG_DIR"
+DMG_MATCHES=$(find "$DMG_DIR" -maxdepth 1 -name "${PRODUCT_NAME}_${VERSION}_*.dmg" 2>/dev/null | sort)
+DMG_COUNT=$(printf '%s' "$DMG_MATCHES" | grep -c . || true)
+DMG_FILE=$(printf '%s' "$DMG_MATCHES" | head -1)
+TAR_FILE="$MACOS_DIR/${PRODUCT_NAME}.app.tar.gz"
+SIG_FILE="$TAR_FILE.sig"
+
+if [ "$DMG_COUNT" -ne 1 ]; then
+  echo "Error: expected exactly one DMG for $PRODUCT_NAME $VERSION in $DMG_DIR, found $DMG_COUNT"
+  [ -n "$DMG_MATCHES" ] && printf '%s\n' "$DMG_MATCHES" | sed 's/^/  /'
   exit 1
 fi
 
-if [ -z "$TAR_FILE" ] || [ -z "$SIG_FILE" ]; then
+if [ ! -f "$TAR_FILE" ] || [ ! -f "$SIG_FILE" ]; then
   echo "Error: Updater artifacts missing in $MACOS_DIR"
-  echo "  Expected: *.app.tar.gz and *.app.tar.gz.sig"
+  echo "  Expected: $(basename "$TAR_FILE") and $(basename "$SIG_FILE")"
   echo "  Check that \`createUpdaterArtifacts\` is true and TAURI_SIGNING_PRIVATE_KEY is valid."
   exit 1
 fi
@@ -285,11 +300,21 @@ if [ "$UNSIGNED" -eq 1 ]; then
 
 ---
 
-**This build is not signed by Apple.** The first time you open Inkra, macOS
-will say it cannot verify the developer and refuse to launch it. To get past
-that: open Applications, right-click Inkra, choose **Open**, then confirm in
-the dialog. macOS remembers the choice — subsequent launches, and in-app
-updates, work normally.
+**This build is not signed by Apple**, so macOS blocks it the first time you
+open it. Drag Inkra to Applications first, then:
+
+1. Right-click Inkra, choose **Open**, and confirm. For most people that is
+   enough, and macOS remembers the choice.
+2. If macOS instead says Inkra is **damaged**, that dialog has no way past it.
+   Open Terminal and run:
+
+   ```
+   xattr -dr com.apple.quarantine /Applications/Inkra.app
+   ```
+
+   Then open Inkra normally.
+
+Once it has opened once, later launches and in-app updates work as usual.
 GATEKEEPER
 fi
 

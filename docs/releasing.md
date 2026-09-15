@@ -76,7 +76,7 @@ The script will, in order:
 2. Run pre-flight git checks (on master, clean tree, fast-forward of origin, tag doesn't already exist).
 3. Push `master` to origin so the commit the release will point at is published before the build starts.
 4. Build the desktop crate in release mode (`vp exec tauri build --bundles app,dmg`).
-5. Sign `Inkra.app` and the DMG with the Developer ID identity from `.env`.
+5. Sign `Inkra.app` and the DMG with the Developer ID identity from `.env` — or ad-hoc, under `--unsigned`.
 6. Submit the app to Apple notarization and wait for the result. This is the slowest step and the most likely to fail — if Apple returns anything other than `Accepted`, stop and report the notarization log to the user.
 7. Staple the notarization ticket to the app.
 8. Bundle `Inkra.app.tar.gz` and produce `Inkra.app.tar.gz.sig` using the Tauri updater key.
@@ -103,15 +103,24 @@ Click **Publish release**. Until you do, the in-app updater won't see the new ve
 
 ## Unsigned releases
 
-`--unsigned` cuts a release without Apple signing or notarization. It exists so the project can ship before a Developer ID certificate does, and it is a stopgap — prefer a signed release whenever one is possible.
+`--unsigned` cuts a release without a Developer ID and without notarization. It exists so the project can ship before a certificate does, and it is a stopgap — prefer a signed release whenever one is possible.
 
-What changes:
+The name is shorthand. The build is **ad-hoc signed**, not bare, and the difference matters:
 
-- The `APPLE_*` variables are no longer required, and any value present in `.env` is actively cleared before the build. tauri-cli decides whether to sign and whether to notarize from those variables alone, so a leftover value would otherwise produce a half-signed bundle that fails late.
-- `TAURI_SIGNING_PRIVATE_KEY` is still required, and telemetry is validated as usual. The updater signature is minisign and has nothing to do with Apple, so the updater keeps working exactly as it does for a signed release.
-- The script appends a Gatekeeper note to the release body. An unsigned app is refused on first open with a dialog that offers no way past it, so the workaround ships attached to the download: right-click the app in Applications, choose **Open**, confirm once.
+|                              | `_CodeSignature` seal | `codesign --verify` | What macOS tells the user                 |
+| ---------------------------- | --------------------- | ------------------- | ----------------------------------------- |
+| No identity at all           | absent                | fails               | "damaged" — the dialog has no way past it |
+| `APPLE_SIGNING_IDENTITY="-"` | present               | passes              | untrusted developer — recoverable         |
 
-What it costs: every user meets that dialog on first launch, and the download carries no guarantee that the bundle is unmodified. Once a certificate exists, drop the flag — nothing else about the process changes.
+With no identity the linker still signs the inner binary, but nothing writes a bundle seal, and macOS reads an unsealed bundle as corrupt rather than merely unknown. So `--unsigned` sets the identity to `-` instead of clearing it. Hardened runtime survives: the built app reports `flags=0x10002(adhoc,runtime)`.
+
+What else changes:
+
+- `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID` are no longer required, and any value in `.env` is cleared before the build. tauri-cli infers notarization from exactly those, so clearing them is what skips it — and stops a stale `.env` from half-configuring a submission.
+- `TAURI_SIGNING_PRIVATE_KEY` is still required and telemetry is validated as usual. The updater signature is minisign and has nothing to do with Apple, so auto-update behaves exactly as on a signed release.
+- The script appends a Gatekeeper note to the release body, covering both dialogs: right-click → **Open** first, and `xattr -dr com.apple.quarantine` as the fallback if macOS claims the app is damaged.
+
+What it costs: every user meets a dialog on first launch, and the download carries no guarantee that the bundle is unmodified — an ad-hoc signature proves internal consistency, not origin. Once a certificate exists, drop the flag; nothing else about the process changes.
 
 ## When things go wrong
 
