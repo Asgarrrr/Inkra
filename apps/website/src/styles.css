@@ -200,7 +200,7 @@ a {
   margin-bottom: 1px;
 }
 
-.alpha-pill {
+.beta-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -328,6 +328,7 @@ a {
 
   .caption {
     margin-top: 16px;
+    font-size: 11px;
   }
 
   .features {
@@ -390,5 +391,27 @@ a {
     width: auto;
     height: 20vh;
     flex-shrink: 0;
+  }
+}
+
+@media (max-width: 375px) {
+  .headline {
+    font-size: 20px;
+  }
+
+  .pill {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .download {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .feature {
+    font-size: 11px;
   }
 }
