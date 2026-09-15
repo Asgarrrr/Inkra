@@ -100,6 +100,22 @@
       "default": "title"
     },
     {
+      "key": "appearance.sidebar-sort",
+      "label": "Sidebar Sort",
+      "description": "Order of files in the sidebar tree; folders always come first, by name",
+      "category": "Appearance",
+      "type": "enum",
+      "options": [
+        "name-asc",
+        "name-desc",
+        "modified-desc",
+        "modified-asc",
+        "created-desc",
+        "created-asc"
+      ],
+      "default": "name-asc"
+    },
+    {
       "key": "appearance.sidebar-show-search",
       "label": "Sidebar Search Button",
       "description": "Show the Search button at the top of the sidebar",

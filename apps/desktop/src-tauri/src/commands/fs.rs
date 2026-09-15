@@ -16,6 +16,9 @@ pub struct DirEntry {
     pub is_dir: bool,
     pub is_markdown: bool,
     pub modified_at: u64,
+    /// Creation time in seconds since the epoch. Falls back to the modified
+    /// time on filesystems without a birth time (many Linux mounts).
+    pub created_at: u64,
     /// Document title extracted from frontmatter `title:` or leading `# ` heading.
     /// `None` for directories or files without a recognizable title.
     pub title: Option<String>,
@@ -106,14 +109,28 @@ fn extract_leading_h1(text: &str) -> Option<String> {
     None
 }
 
+fn epoch_secs(time: std::io::Result<std::time::SystemTime>) -> Option<u64> {
+    time.ok().map(|t| {
+        t.duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    })
+}
+
 pub(crate) fn modified_time(path: &std::path::Path) -> u64 {
     fs::metadata(path)
-        .and_then(|m| m.modified())
-        .map(|t| {
-            t.duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        })
+        .ok()
+        .and_then(|m| epoch_secs(m.modified()))
+        .unwrap_or(0)
+}
+
+/// Creation time, falling back to the modified time where the platform or
+/// filesystem exposes none, so created-time sorting degrades to modified-time
+/// sorting instead of collapsing to zero.
+pub(crate) fn created_time(path: &std::path::Path) -> u64 {
+    fs::metadata(path)
+        .ok()
+        .and_then(|m| epoch_secs(m.created()).or_else(|| epoch_secs(m.modified())))
         .unwrap_or(0)
 }
 
@@ -269,6 +286,7 @@ pub fn read_directory_impl(
                     is_dir: true,
                     is_markdown: false,
                     modified_at: modified_time(&entry_path),
+                    created_at: created_time(&entry_path),
                     title: None,
                 });
             }
@@ -282,6 +300,7 @@ pub fn read_directory_impl(
                     is_dir: false,
                     is_markdown: true,
                     modified_at: modified_time(&entry_path),
+                    created_at: created_time(&entry_path),
                     title,
                 });
             }
@@ -360,7 +379,7 @@ pub async fn write_file(
     let write_path = PathBuf::from(&path);
     let result = blocking(move || write_file_impl(&path, &content)).await?;
     state.update_index_modified_at(&write_path, result.modified_at);
-    let _ = app.emit_to(label, "sidebar:metadata-changed", &result.path);
+    let _ = app.emit_to(label, "sidebar:metadata-changed", &result);
     Ok(result)
 }
 
@@ -380,6 +399,7 @@ pub(crate) fn markdown_file_entry(path: &Path) -> Option<DirEntry> {
         is_dir: false,
         is_markdown: true,
         modified_at: modified_time(path),
+        created_at: created_time(path),
         title: extract_title(path),
     })
 }
@@ -498,6 +518,7 @@ pub fn create_directory_impl(path: &str) -> Result<DirEntry, AppError> {
         is_dir: true,
         is_markdown: false,
         modified_at: modified_time(&dir_path),
+        created_at: created_time(&dir_path),
         title: None,
     })
 }

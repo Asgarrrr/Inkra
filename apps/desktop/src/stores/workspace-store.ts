@@ -32,6 +32,10 @@ interface WorkspaceState {
   refreshDirectory: (path: string) => Promise<void>;
   toggleDirectory: (path: string) => Promise<void>;
   invalidatePath: (path: string) => void;
+  /** Refresh one cached file's `modified_at` from a write result. The watcher
+   *  suppresses Writer's own saves, so without this the tree's copy of the
+   *  timestamp would go stale and time-based sorting would not react to edits. */
+  updateEntryModifiedAt: (path: string, modifiedAt: number) => void;
   rewriteExpandedDir: (oldPath: string, newPath: string) => void;
   hydratePinnedFiles: (root: string) => Promise<void>;
   togglePinnedFile: (path: string) => void;
@@ -280,6 +284,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set((state) => {
       const cache = new Map(state.directoryCache);
       cache.delete(path);
+      return { directoryCache: cache };
+    });
+  },
+
+  updateEntryModifiedAt: (path: string, modifiedAt: number) => {
+    set((state) => {
+      const parent = path.substring(0, path.lastIndexOf("/"));
+      const entries = state.directoryCache.get(parent);
+      if (!entries) return state;
+      const index = entries.findIndex((entry) => entry.path === path);
+      if (index === -1 || entries[index].modified_at === modifiedAt) return state;
+      const next = entries.slice();
+      next[index] = { ...entries[index], modified_at: modifiedAt };
+      const cache = new Map(state.directoryCache);
+      cache.set(parent, next);
       return { directoryCache: cache };
     });
   },

@@ -1,25 +1,33 @@
 import { describe, expect, test } from "vite-plus/test";
 import { flattenTree, sortTreeEntries } from "../src/components/sidebar/flatten-tree";
+import { SIDEBAR_SORT_MODES } from "../src/components/sidebar/sidebar-sort";
+import { SETTINGS_SCHEMA } from "../src/lib/settings-schema";
 import type { DirEntry } from "../src/types/fs";
 
-function file(name: string, title: string | null = null): DirEntry {
+function file(
+  name: string,
+  title: string | null = null,
+  times: { modified?: number; created?: number } = {},
+): DirEntry {
   return {
     name,
     path: `/ws/${name}`,
     is_dir: false,
     is_markdown: true,
-    modified_at: 0,
+    modified_at: times.modified ?? 0,
+    created_at: times.created ?? 0,
     title,
   };
 }
 
-function dir(name: string): DirEntry {
+function dir(name: string, times: { modified?: number; created?: number } = {}): DirEntry {
   return {
     name,
     path: `/ws/${name}`,
     is_dir: true,
     is_markdown: false,
-    modified_at: 0,
+    modified_at: times.modified ?? 0,
+    created_at: times.created ?? 0,
     title: null,
   };
 }
@@ -70,6 +78,72 @@ describe("sortTreeEntries", () => {
     const entries = [file("second.md", "Notes"), file("first.md", "Notes")];
 
     expect(names(sortTreeEntries(entries, "title"))).toEqual(["first.md", "second.md"]);
+  });
+
+  test("name-desc reverses the label order and keeps folders first A–Z", () => {
+    const entries = [file("a.md", "Apples"), dir("zoo"), file("b.md", "Bananas"), dir("Barn")];
+
+    expect(names(sortTreeEntries(entries, "title", "name-desc"))).toEqual([
+      "Barn",
+      "zoo",
+      "b.md",
+      "a.md",
+    ]);
+  });
+
+  test("modified modes order files by modified time and leave folders alphabetical", () => {
+    const entries = [
+      file("old.md", "Zed", { modified: 10 }),
+      dir("later", { modified: 99 }),
+      file("new.md", "Alpha", { modified: 30 }),
+      dir("early", { modified: 1 }),
+      file("mid.md", "Mid", { modified: 20 }),
+    ];
+
+    expect(names(sortTreeEntries(entries, "title", "modified-desc"))).toEqual([
+      "early",
+      "later",
+      "new.md",
+      "mid.md",
+      "old.md",
+    ]);
+    expect(names(sortTreeEntries(entries, "title", "modified-asc"))).toEqual([
+      "early",
+      "later",
+      "old.md",
+      "mid.md",
+      "new.md",
+    ]);
+  });
+
+  test("created modes order files by created time", () => {
+    const entries = [
+      file("b.md", "B", { created: 5, modified: 50 }),
+      file("a.md", "A", { created: 9, modified: 10 }),
+    ];
+
+    expect(names(sortTreeEntries(entries, "title", "created-desc"))).toEqual(["a.md", "b.md"]);
+    expect(names(sortTreeEntries(entries, "title", "created-asc"))).toEqual(["b.md", "a.md"]);
+  });
+
+  test("time modes fall back to the label order on equal timestamps", () => {
+    const entries = [file("b.md", "Beta", { modified: 7 }), file("a.md", "Alpha", { modified: 7 })];
+
+    expect(names(sortTreeEntries(entries, "title", "modified-desc"))).toEqual(["a.md", "b.md"]);
+  });
+
+  test("an unknown or missing sort mode sorts by name", () => {
+    const entries = [file("b.md", "Beta", { modified: 1 }), file("a.md", "Alpha", { modified: 9 })];
+
+    expect(names(sortTreeEntries(entries, "title"))).toEqual(["a.md", "b.md"]);
+    expect(names(sortTreeEntries(entries, "title", "bogus"))).toEqual(["a.md", "b.md"]);
+  });
+
+  test("the sort registry matches the setting's schema options", () => {
+    const setting = SETTINGS_SCHEMA.find((def) => def.key === "appearance.sidebar-sort");
+
+    expect(setting?.options).toEqual(SIDEBAR_SORT_MODES.map((mode) => mode.id));
+    expect(setting?.default).toBe(SIDEBAR_SORT_MODES[0].id);
   });
 
   test("does not mutate the cached array", () => {

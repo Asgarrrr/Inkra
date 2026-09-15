@@ -68,6 +68,7 @@ export function FileTree({
   const togglePinnedFile = useTogglePinnedFile();
   const workspaceRoot = useWorkspaceRoot();
   const fileLabelMode = useSetting("appearance.sidebar-file-label");
+  const sortMode = useSetting("appearance.sidebar-sort");
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   // Anchor for shift range-select. Only read inside handlers, never rendered,
   // so a ref avoids re-renders that a useState would trigger on every change.
@@ -81,8 +82,8 @@ export function FileTree({
   useAutoRefresh(rootPath, entries.length === 0);
 
   const flatItems = useMemo(
-    () => flattenTree(entries, 0, directoryCache, expandedDirs, fileLabelMode),
-    [directoryCache, entries, expandedDirs, fileLabelMode],
+    () => flattenTree(entries, 0, directoryCache, expandedDirs, fileLabelMode, sortMode),
+    [directoryCache, entries, expandedDirs, fileLabelMode, sortMode],
   );
 
   const entryByPath = useMemo(() => {
