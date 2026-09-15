@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp exec vite dev",
-    "build": "vp exec vite build && vp exec tsc --noEmit && vp exec tsc -p tsconfig.node.json --noEmit",
-    "preview": "vp exec vite preview"
+    "dev": "vp dev",
+    "build": "vp build && vp exec tsc --noEmit && vp exec tsc -p tsconfig.node.json --noEmit",
+    "preview": "vp preview"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.13",
@@ -22,6 +22,6 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
-    "vite": "npm:vite@^8.0.16"
+    "vite": "catalog:"
   }
 }

@@ -189,7 +189,7 @@ function buildTableSourceLineDecorations(
   const decorations: Range<Decoration>[] = [];
   const firstLine = state.doc.lineAt(node.from);
 
-  for (let pos = firstLine.from; pos <= node.to; ) {
+  for (let pos = firstLine.from; pos <= node.to;) {
     const line = state.doc.lineAt(pos);
     const isFirst = line.from === firstLine.from;
     const isLast = line.to >= node.to;
