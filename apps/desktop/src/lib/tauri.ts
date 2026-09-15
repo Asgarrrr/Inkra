@@ -289,6 +289,12 @@ export function showMainWindow(): Promise<void> {
   return getCurrentWindow().show();
 }
 
+/** Request a close of this window. Goes through the close-requested event,
+ *  so the main window is hidden rather than destroyed (`lib.rs`). */
+export function closeWindow(): Promise<void> {
+  return getCurrentWindow().close();
+}
+
 // Image commands
 export function saveClipboardImage(
   markdownFilePath: string,

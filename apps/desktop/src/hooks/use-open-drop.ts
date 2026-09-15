@@ -17,27 +17,30 @@ export async function openStandaloneFile(path: string, prefetched: FileContent |
   await useEditorStore.getState().openCompactFile(path, prefetched);
 }
 
-export async function handleOpenPayload(payload: PendingOpenPayload) {
+/** Apply an open payload. Resolves to `true` when the open landed in this
+ *  window and `false` when it was delegated to another window, so the caller
+ *  knows whether this window is the one to bring forward. */
+export async function handleOpenPayload(payload: PendingOpenPayload): Promise<boolean> {
   const workspaceState = useWorkspaceStore.getState();
   const current = workspaceState.root;
 
   // File-only payload: standalone compact open. A window hosting a
   // workspace never switches chrome — the file gets its own window.
   if (!payload.workspace) {
-    if (!payload.file) return;
+    if (!payload.file) return false;
     if (current) {
       await tauri.openFileInStandaloneWindow(payload.file);
-      return;
+      return false;
     }
     await openStandaloneFile(payload.file);
-    return;
+    return true;
   }
 
   // Folder payload onto a standalone compact window: keep this window
   // pure and open the workspace in a fresh window.
   if (!current && workspaceState.chromeMode === "compact-file") {
     await tauri.openWorkspaceInNewWindow(payload.workspace, payload.file);
-    return;
+    return false;
   }
 
   // Different workspace: open in a new in-process window so the current
@@ -45,7 +48,7 @@ export async function handleOpenPayload(payload: PendingOpenPayload) {
   // and hydrates onto it during its normal startup flow.
   if (current && payload.workspace !== current) {
     await tauri.openWorkspaceInNewWindow(payload.workspace, payload.file);
-    return;
+    return false;
   }
 
   if (payload.workspace !== current) {
@@ -55,6 +58,7 @@ export async function handleOpenPayload(payload: PendingOpenPayload) {
   if (payload.file) {
     await useEditorStore.getState().openFile(payload.file);
   }
+  return true;
 }
 
 let openTask: Promise<void> = Promise.resolve();
@@ -66,7 +70,13 @@ function queueOpenTask(task: () => Promise<void>) {
 }
 
 function queueOpenPayload(payload: PendingOpenPayload) {
-  return queueOpenTask(() => handleOpenPayload(payload));
+  return queueOpenTask(async () => {
+    const landedHere = await handleOpenPayload(payload);
+    // The main window may be hidden (last Cmd+W). Runtime opens only run
+    // after startup has resolved and shown the window once, so this never
+    // reveals a still-hydrating window; on a visible window it is a no-op.
+    if (landedHere) await tauri.showMainWindow();
+  });
 }
 
 export function createPendingOpenDrainer(
