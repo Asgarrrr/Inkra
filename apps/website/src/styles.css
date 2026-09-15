@@ -310,9 +310,9 @@ a {
     /* The sticky hero is a desktop-only affordance: in the stacked layout it
        would stay pinned while the video strip scrolls up over the features. */
     position: static;
+    flex: 1;
     height: auto;
-    min-height: 100vh;
-    min-height: 100svh;
+    min-height: 0;
     width: auto;
     margin: 0;
     padding: 20px 20px 20px;
@@ -332,6 +332,17 @@ a {
 
   .features {
     gap: 8px;
+  }
+
+  .feature {
+    font-size: 14px;
+    line-height: 140%;
+  }
+
+  .headline {
+    font-size: 24px;
+    letter-spacing: -0.015em;
+    line-height: 120%;
   }
 
   .screenshots {
@@ -360,14 +371,8 @@ a {
 }
 
 @media (max-width: 599px) {
-  .headline {
-    font-size: 24px;
-    letter-spacing: -0.015em;
-    line-height: 120%;
-  }
-
   .feature {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 140%;
   }
 
