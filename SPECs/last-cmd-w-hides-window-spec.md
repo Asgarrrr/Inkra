@@ -15,7 +15,7 @@ Cmd+W when only the launcher tab is left should put the window away instead of d
 
 ## Implementation Notes
 
-- The decision to hide lives in one place: the main window's close-requested handler in `lib.rs` (`attach_window_handlers`). The frontend only asks for a close via `getCurrentWindow().close()`, which needs `core:window:allow-close`.
+- The decision to hide lives in one place: the main window's close-requested handler in `lib.rs` (`attach_window_handlers`). It is compiled for macOS only; on other platforms there is no Dock to bring a hidden window back, so a close stays a close. The frontend only asks for a close via `getCurrentWindow().close()`, which needs `core:window:allow-close`.
 - `RunEvent::Reopen { has_visible_windows: false }` shows and focuses the main window. It can only ever be hidden, never destroyed, so it always exists.
 - Every "focus the existing window" path (`open_new_workspace_window`, `open_standalone_file_window`, single-instance relaunch, the `RunEvent::Opened` standalone match) goes through `reveal_window`, since `set_focus` does nothing on a hidden window.
 - `handleOpenPayload` now reports whether the open landed in this window; the runtime drainer calls `showMainWindow` in that case. Runtime opens only run after startup has resolved and shown the window once, so this never reveals a half-hydrated window.
