@@ -39,6 +39,7 @@
       "cmdk": "^1.1.1",
       "dompurify": "^3.4.7",
       "katex": "^0.16.25",
+      "lefthook": "^2.1.14",
       "motion": "^12.39.0",
       "node-emoji": "^2.2.0",
       "posthog-js": "^1.429.2",
@@ -46,7 +47,6 @@
       "tailwindcss": "^4.2.2",
       "typescript": "^5",
       "vite": "^8.3.0",
-      "vite-plus": "^0.1.22",
       "vitest": "^5.0.1",
       "yaml": "^2.8.3",
       "zustand": "^5.0.12"
@@ -54,16 +54,17 @@
   },
   "type": "module",
   "scripts": {
-    "ready": "biome check --write && bun run typecheck && bun run test && vp run build -r",
-    "dev": "vp run desktop#dev",
+    "ready": "biome check --write && bun run typecheck && bun run test && bun run build",
+    "dev": "bun run --filter desktop dev",
     "test": "vitest run",
-    "prepare": "vp config",
+    "prepare": "lefthook install",
     "distribute": "./scripts/distribute.sh",
-    "typecheck": "bun run --filter \"*\" typecheck"
+    "typecheck": "bun run --filter \"*\" typecheck",
+    "build": "bun run --filter \"*\" build"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "vite-plus": "catalog:",
+    "lefthook": "catalog:",
     "vitest": "catalog:"
   },
   "overrides": {

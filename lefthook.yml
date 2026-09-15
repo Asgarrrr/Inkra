@@ -1,0 +1,16 @@
+pre-commit:
+  parallel: false
+  jobs:
+    # Fixes what it can and re-stages the result, so the commit contains the
+    # formatted code rather than failing and making you run it yourself.
+    - name: biome
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css,html}"
+      # `bunx`, not bare `biome`: lefthook does not put `node_modules/.bin` on
+      # PATH, so a bare name exits 127 and the step never formats anything.
+      run: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+    # No `{staged_files}`: `tsc` given filenames ignores the tsconfig that
+    # names them, so a file-scoped run would silently check nothing.
+    - name: typecheck
+      run: bun run typecheck

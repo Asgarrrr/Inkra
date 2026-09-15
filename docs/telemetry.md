@@ -125,7 +125,7 @@ Three independent switches, any one of which is sufficient:
    packagers and for anyone running a build they did not make themselves.
 3. **Build it yourself.** The PostHog project key is supplied at compile time
    via `INKRA_POSTHOG_KEY`. A build without that variable — which is what you
-   get by cloning this repo and running `vp dev` or `cargo build` — has no key
+   get by cloning this repo and running `bun run dev` or `cargo build` — has no key
    compiled in, never constructs the client, never generates an identifier, and
    never shows the consent prompt, whatever the settings say.
 
@@ -138,7 +138,7 @@ production analytics. To exercise the real path against your own PostHog
 project:
 
 ```bash
-INKRA_POSTHOG_KEY=phc_your_project_key vp dev
+INKRA_POSTHOG_KEY=phc_your_project_key bun run dev
 ```
 
 Adding an event means editing three things in the same commit: the `track` call

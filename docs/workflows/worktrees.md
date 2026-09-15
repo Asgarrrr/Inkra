@@ -39,4 +39,4 @@ git branch -d <name>
 
 - `.worktrees/` is gitignored — worktrees are local-only.
 - Each worktree shares the same git history but has its own working tree and index.
-- Run `vp install` inside a new worktree before developing.
+- Run `bun install` inside a new worktree before developing.

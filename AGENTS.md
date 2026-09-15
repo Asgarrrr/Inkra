@@ -13,7 +13,7 @@ This is an **agent router**: concise context loaded every session. It routes the
 Stack: Tauri v2 (React + Rust)
 Frontend: `apps/desktop/src/` — React, Zustand stores, CodeMirror/Prosemark editor
 Backend: `apps/desktop/src-tauri/src/` — Rust IPC commands, file watcher, workspace state
-Toolchain: Vite+ (`vp`) — see [docs/vite-plus.md](./docs/vite-plus.md)
+Toolchain: Bun (package manager and task runner), Vite 8, Vitest 5, Biome, lefthook
 
 Rust source structure:
 
@@ -39,7 +39,6 @@ All docs except CLAUDE.md, AGENTS.md, TODOS.md, and CHANGELOG.md live in `./docs
 - [docs/react-guidelines.md](./docs/react-guidelines.md) — imports, state, side effects, component structure, persistence
 - [docs/zustand.md](./docs/zustand.md) — side effect timing, selectors, bail-out patterns
 - [docs/editor.md](./docs/editor.md) — CodeMirror layout-model APIs, scroll-handler ownership, block-widget patterns (decoration shape, range-select to enter edit mode, posAtDOM boundary handling, button focus race, scrollSnapshot for heightmap shifts)
-- [docs/vite-plus.md](./docs/vite-plus.md) — `vp` CLI usage and common pitfalls
 - [docs/keyboard-shortcuts.md](./docs/keyboard-shortcuts.md) — canonical shortcut map
 
 **Infra**
@@ -83,7 +82,7 @@ All docs except CLAUDE.md, AGENTS.md, TODOS.md, and CHANGELOG.md live in `./docs
 Frontend:
 
 - `biome check` — format and lint (`biome check --write` to fix)
-- TypeScript type checks run with the app builds (`vp run desktop#build`, `vp run website#build`)
+- `bun run typecheck` — TypeScript type checks across every workspace
 - `bun run test` — JavaScript/TypeScript tests, via Vitest (`vitest run`)
 
 Rust (from `apps/desktop/src-tauri/`):
@@ -96,19 +95,17 @@ Rust (from `apps/desktop/src-tauri/`):
 
 Wrap per [agent-loop.md](./docs/workflows/agent-loop.md). One commit per completed task with a clear message. See the existing commit history for style.
 
-<!--VITE PLUS START-->
+## Toolchain
 
-# Using Vite+, the Unified Toolchain for the Web
-
-This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
-
-Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+Bun is the package manager and task runner, pinned by `packageManager`; Node is
+pinned by `.node-version` and floored by `engines.node`. Vite 8 builds both
+apps, Vitest 5 runs the tests, Biome formats and lints, and lefthook installs
+the pre-commit hook. There is no wrapper CLI: every tool is invoked directly.
 
 ## Review Checklist
 
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
-- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
-- [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
+- [ ] Run `bun install` after pulling remote changes and before getting started.
+- [ ] Run `biome check --write`, `bun run typecheck`, and `bun run test` before committing.
+- [ ] `bun run ready` chains all of the above plus both app builds.
+- [ ] Run a single workspace's script with `bun run --filter <pkg> <script>`.
 
-<!--VITE PLUS END-->

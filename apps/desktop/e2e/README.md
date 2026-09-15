@@ -19,7 +19,7 @@ cargo install tauri-webdriver --locked
 Install JS deps from the repo root:
 
 ```sh
-vp install
+bun install
 ```
 
 ## Running
@@ -27,7 +27,7 @@ vp install
 From `apps/desktop/e2e/`:
 
 ```sh
-vp run test:e2e
+bun run test:e2e
 ```
 
 This builds the app with `--features e2e` (which embeds the WebDriver server)
@@ -60,7 +60,7 @@ bundle identifier (see below).
 
 ## How it works
 
-1. `vp run build:app` produces `Inkra.app` with the `e2e` Cargo feature,
+1. `bun run build:app` produces `Inkra.app` with the `e2e` Cargo feature,
    which includes `tauri-plugin-webdriver` (an embedded HTTP WebDriver server).
 2. `wdio.conf.js` (`onPrepare`) spawns the `tauri-webdriver` intermediary CLI
    on port 4444.
@@ -71,7 +71,7 @@ bundle identifier (see below).
 
 ## Build flavors
 
-- `vp run desktop#dev` and `vp build` are unchanged — no WebDriver server.
+- `bun run --filter desktop dev` and `bun run --filter desktop build` are unchanged — no WebDriver server.
 - The e2e build invokes
   `cargo tauri build --features e2e --bundles app --config '{"identifier":"com.inkra.e2e","bundle":{"createUpdaterArtifacts":false}}'`.
   The overrides:
@@ -91,7 +91,7 @@ bundle identifier (see below).
 - **`ENOENT: tauri-webdriver`** — run `cargo install tauri-webdriver --locked`.
 - **Port 4444/4445 in use** — a previous run did not clean up.
   `pkill -f tauri-webdriver` and retry.
-- **App binary not found** — run `vp run build:app` first (or use
-  `vp run test:e2e` which chains them).
+- **App binary not found** — run `bun run build:app` first (or use
+  `bun run test:e2e` which chains them).
 - **Test hangs at `waitForDisplayed`** — the WKWebView likely did not load.
-  Sanity-check that `vp run desktop#dev` still launches the app normally.
+  Sanity-check that `bun run --filter desktop dev` still launches the app normally.

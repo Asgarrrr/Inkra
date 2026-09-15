@@ -6,7 +6,7 @@
   "scripts": {
     "build:app": "cd ../src-tauri && cargo tauri build --features e2e --bundles app --config '{\"identifier\":\"com.inkra.e2e\",\"bundle\":{\"createUpdaterArtifacts\":false}}'",
     "test:wdio": "wdio run ./wdio.conf.js",
-    "test:e2e": "vp run build:app && vp run test:wdio"
+    "test:e2e": "bun run build:app && bun run test:wdio"
   },
   "devDependencies": {
     "@wdio/cli": "^9.6.0",

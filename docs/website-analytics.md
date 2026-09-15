@@ -97,7 +97,7 @@ request is made and nothing is logged. This is the same rule the desktop app
 applies to a build with no `INKRA_POSTHOG_KEY`: inert by construction rather
 than merely switched off.
 
-That is what makes a plain `vp run website#build`, `vp run website#dev`, and
+That is what makes a plain `bun run --filter website build`, `bun run --filter website dev`, and
 anyone's clone of this repo silent without any further setup.
 
 ## Building with the key
@@ -107,16 +107,16 @@ first, from the repository root:
 
 ```sh
 set -a; source .env; set +a
-vp run website#build
+bun run --filter website build
 ```
 
 Or pass the value inline for a one-off:
 
 ```sh
-INKRA_POSTHOG_KEY=phc_your_project_key vp run website#build
+INKRA_POSTHOG_KEY=phc_your_project_key bun run --filter website build
 ```
 
-`vp run website#build` is not cached, so a later build without the variable
+`bun run --filter website build` is not cached, so a later build without the variable
 produces an inert bundle rather than replaying the keyed one.
 
 To point the website somewhere else without touching the app, copy
@@ -132,8 +132,8 @@ result:
 
 ```sh
 set -a; source .env; set +a
-vp run website#build
-vp dlx wrangler deploy --config wrangler.jsonc
+bun run --filter website build
+bunx wrangler deploy --config wrangler.jsonc
 ```
 
 Setting it as a Cloudflare Worker variable or secret does nothing: the Worker

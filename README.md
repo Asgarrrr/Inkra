@@ -20,8 +20,8 @@ It is built with Tauri v2, React, Zustand, CodeMirror, and Rust. The app keeps d
 This repo uses Vite+ through the `vp` CLI. Use `vp` instead of calling the package manager or Vite tooling directly.
 
 ```bash
-vp install
-vp dev
+bun install
+bun run dev
 ```
 
 ## Validation

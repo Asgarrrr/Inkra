@@ -136,5 +136,5 @@ This summary is how the human reviewer starts their day.
 - One commit per task. Do not batch unless explicitly asked.
 - Be concise. Follow existing code patterns. This is a maturing codebase — use established patterns instead of inventing new ones.
 - Keep Tauri IPC boundaries in mind: frontend state vs. Rust backend state.
-- For UI changes, test in the browser via `vp dev` before reporting the task as complete.
+- For UI changes, test in the browser via `bun run dev` before reporting the task as complete.
 - When in doubt about scope or intent, move to **Needs Input** rather than guessing — but this should be rare. The cost is a lost day.

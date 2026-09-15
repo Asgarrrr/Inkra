@@ -17,10 +17,10 @@ The Worker name in Cloudflare must match `name` in `wrangler.jsonc` so local dep
 Deploys are run manually from a local machine using Wrangler CLI. From the repository root:
 
 ```sh
-vp install
+bun install
 set -a; source .env; set +a
-vp run website#build
-vp dlx wrangler deploy --config wrangler.jsonc
+bun run --filter website build
+bunx wrangler deploy --config wrangler.jsonc
 ```
 
 The `source .env` line is what supplies the analytics key: the site shares the
@@ -36,7 +36,7 @@ the bundle by name; the signing credentials in that same `.env` are not, and
 Wrangler must be logged into the Cloudflare account that owns `inkra-website`:
 
 ```sh
-vp dlx wrangler login
+bunx wrangler login
 ```
 
 Verify the deployment against the `*.workers.dev` URL that Wrangler prints, or
