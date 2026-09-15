@@ -1,4 +1,4 @@
-import identityContract from "@shared/workspace-identity.contract.json";
+import type identityContract from "@shared/workspace-identity.contract.json";
 
 export type WorkspaceIdentity = typeof identityContract;
 

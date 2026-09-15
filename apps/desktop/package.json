@@ -9,7 +9,8 @@
     "build": "tsc && vite build",
     "build:vite": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/autocomplete": "catalog:",

@@ -69,7 +69,7 @@ function extractWikiTarget(
   const text = line.text;
 
   WIKI_LINK_RE.lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = WIKI_LINK_RE.exec(text)) !== null) {
     const matchStart = line.from + match.index;
     const matchEnd = matchStart + match[0].length;
@@ -203,7 +203,7 @@ function buildDecorations(view: EditorView, getFilePath: () => string): Decorati
   for (const { from, to } of view.visibleRanges) {
     const text = doc.sliceString(from, to);
     WIKI_LINK_RE.lastIndex = 0;
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = WIKI_LINK_RE.exec(text)) !== null) {
       const inner = match[2]!;
       const embedTarget = match[1] ? parseWikiImageEmbedTarget(inner) : null;

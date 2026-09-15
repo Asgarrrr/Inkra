@@ -1,5 +1,5 @@
 import { keymap, dropCursor, EditorView } from "@codemirror/view";
-import { type Extension } from "@codemirror/state";
+import type { Extension } from "@codemirror/state";
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { selectNextOccurrence, selectSelectionMatches } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";

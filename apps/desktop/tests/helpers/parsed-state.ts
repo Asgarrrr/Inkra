@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 import { ensureSyntaxTree } from "@codemirror/language";
 
 /** Parse the whole document and commit the tree into the state so every

@@ -5,12 +5,12 @@ import {
   type SelectionRange,
   findClusterBreak,
 } from "@codemirror/state";
-import {
-  type Decoration,
-  type DOMEventHandlers,
-  type DOMEventMap,
-  type EditorView,
-  type WidgetType,
+import type {
+  Decoration,
+  DOMEventHandlers,
+  DOMEventMap,
+  EditorView,
+  WidgetType,
 } from "@codemirror/view";
 import type { TreeCursor } from "@lezer/common";
 import { syntaxTree } from "@codemirror/language";
@@ -55,7 +55,7 @@ export function stateWORDAt(state: EditorState, pos: number): SelectionRange | n
     if (cat(text.slice(end, next)) === CharCategory.Space) break;
     end = next;
   }
-  return start == end ? null : EditorSelection.range(start + from, end + from);
+  return start === end ? null : EditorSelection.range(start + from, end + from);
 }
 
 export interface RangeLike {

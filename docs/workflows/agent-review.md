@@ -87,7 +87,7 @@ If there are no findings, explicitly say so and list residual risks/testing gaps
 - Reviewers should recommend updates to their own persona's docs whenever they notice gaps, stale info, unclear language, or missing coverage.
 - Commit cadence verified: in loop mode, one commit per completed task (unless user explicitly requested batching).
 - For user-visible work, [`CHANGELOG.md`](../../CHANGELOG.md) updated in the same task/commit.
-- `vp check` passes (format, lint, TypeScript).
+- `biome check` passes (format, lint); the app builds cover TypeScript.
 - `cargo clippy` and `cargo fmt --check` clean for changed Rust files.
 - No unused variables or dead-code declarations remain in changed files.
 - Tests run are appropriate for risk and scope; gaps are called out.

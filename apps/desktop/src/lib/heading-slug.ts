@@ -10,9 +10,7 @@ export function slugifyHeading(text: string): string {
   return text.toLowerCase().replace(GFM_STRIP, "").trim().replace(/\s+/g, "-");
 }
 
-export interface HeadingSlugger {
-  (text: string): string;
-}
+export type HeadingSlugger = (text: string) => string;
 
 export function createHeadingSlugger(): HeadingSlugger {
   const used = new Set<string>();

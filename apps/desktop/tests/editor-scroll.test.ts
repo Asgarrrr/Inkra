@@ -111,7 +111,9 @@ function flushMeasures(view: FakeView, maxRounds = 10) {
   while (view.probe.pending.length > 0 && rounds < maxRounds) {
     const requests = view.probe.pending.splice(0);
     const measured = requests.map((request) => request.read(view));
-    requests.forEach((request, i) => request.write?.(measured[i], view));
+    requests.forEach((request, i) => {
+      request.write?.(measured[i], view);
+    });
     rounds++;
   }
 }

@@ -92,7 +92,7 @@ export const imageExtension = [
 
       if (imageUrl) {
         const line = state.doc.lineAt(node.from);
-        const block = node.from == line.from && node.to == line.to;
+        const block = node.from === line.from && node.to === line.to;
         const widget = new ImageWidget(imageUrl, block);
 
         if (selectionTouchesRange) {

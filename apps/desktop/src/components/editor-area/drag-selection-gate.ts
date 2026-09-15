@@ -1,12 +1,12 @@
 import {
-  EditorState,
-  Extension,
-  SelectionRange,
+  type EditorState,
+  type Extension,
+  type SelectionRange,
   StateEffect,
   StateField,
   Transaction,
 } from "@codemirror/state";
-import { EditorView, ViewPlugin } from "@codemirror/view";
+import { type EditorView, ViewPlugin } from "@codemirror/view";
 import { unfurlFreezeFacet } from "@/lib/prosemark-core/main";
 
 /**

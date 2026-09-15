@@ -45,7 +45,7 @@ const buildDecorations = (state: EditorState) => {
           if (!spec.nodeName(nodeName)) {
             continue;
           }
-        } else if (spec.nodeName instanceof Array) {
+        } else if (Array.isArray(spec.nodeName)) {
           if (!spec.nodeName.includes(nodeName)) {
             continue;
           }
@@ -84,7 +84,7 @@ const buildDecorations = (state: EditorState) => {
         // Hide node using one of the provided methods
         if (spec.onHide) {
           const res = spec.onHide(state, node);
-          if (res instanceof Array) {
+          if (Array.isArray(res)) {
             decorations.push(...res);
           } else if (res) {
             decorations.push(res);

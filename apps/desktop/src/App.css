@@ -106,8 +106,9 @@
   --inkra-editor-max-width: 734px;
   --inkra-editor-side-padding: clamp(1.5rem, 4vw, 4rem);
   --inkra-editor-outer-width: calc(
-    var(--inkra-editor-max-width) + var(--inkra-editor-side-padding) +
-      var(--inkra-editor-side-padding)
+    var(--inkra-editor-max-width) +
+    var(--inkra-editor-side-padding) +
+    var(--inkra-editor-side-padding)
   );
   --inkra-editor-font-family: var(--editor-font);
   --inkra-editor-font-size: 16px;

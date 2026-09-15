@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { styleTags, Tag, tags } from "@lezer/highlight";
+import { styleTags, type Tag, tags } from "@lezer/highlight";
 import { markdownTags } from "./markdown/tags";
 import { mathDelimiterTag, mathFormulaTag } from "./markdown/mathMarkdown";
 import { HighlightStyle, syntaxHighlighting, type TagStyle } from "@codemirror/language";

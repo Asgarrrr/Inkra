@@ -104,7 +104,7 @@ const buildDecorations = (state: EditorState) => {
         // Run folding logic
         if (spec.buildDecorations) {
           const res = spec.buildDecorations(state, node, selectionTouchesRange_);
-          if (res instanceof Array) {
+          if (Array.isArray(res)) {
             decorations.push(...res);
           } else if (res) {
             decorations.push(res);

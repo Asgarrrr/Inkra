@@ -27,7 +27,7 @@ vp dev
 ## Validation
 
 ```bash
-vp check
+biome check
 bun run test
 ```
 

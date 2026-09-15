@@ -2,9 +2,9 @@ import { syntaxTree } from "@codemirror/language";
 import { RangeSet, type Range } from "@codemirror/state";
 import {
   Decoration,
-  EditorView,
+  type EditorView,
   ViewPlugin,
-  ViewUpdate,
+  type ViewUpdate,
   WidgetType,
   type DecorationSet,
 } from "@codemirror/view";
@@ -50,7 +50,7 @@ function measureBlockQuotes(view: EditorView): MeasureData {
       from,
       to,
       enter(node) {
-        if (node.type.name != "Blockquote") return;
+        if (node.type.name !== "Blockquote") return;
         if (seen.has(node.from)) return false;
         seen.add(node.from);
 
@@ -67,7 +67,7 @@ function measureBlockQuotes(view: EditorView): MeasureData {
         cursor.iterate((child) => {
           if (child.type.name !== "QuoteMark") return;
           const line = view.state.doc.lineAt(child.from);
-          if (child.from == line.from) return;
+          if (child.from === line.from) return;
           const offset =
             (view.coordsAtPos(child.from)?.left ?? 0) - (view.coordsAtPos(line.from)?.left ?? 0);
 

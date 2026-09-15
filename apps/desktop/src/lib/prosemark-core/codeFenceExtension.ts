@@ -3,7 +3,7 @@ import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
 import { WidgetType } from "@codemirror/view";
-import { type Extension } from "@codemirror/state";
+import type { Extension } from "@codemirror/state";
 import { FRONTMATTER_LANGUAGE_LABEL, isFrontmatterNode } from "./markdown/frontmatter";
 import { treeChanged } from "./utils";
 

@@ -6,7 +6,7 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 
 - Use `vp` for package management and frontend tooling.
 - The underlying package manager is Bun, selected by `packageManager` in the root `package.json`. Do not call `bun install`/`add`/`remove`, pnpm, npm, or Yarn directly; `bun run <script>` is fine.
-- Use built-in Vite+ commands such as `vp dev`, `vp build`, `vp check`, `vp lint`, and `vp fmt`.
+- Use built-in Vite+ commands such as `vp dev` and `vp build`. Formatting and linting are Biome's, not Vite+'s.
 - When a built-in `vp` command name conflicts with a `package.json` script, use `vp run <script>`.
 - Import JavaScript tooling APIs from `vite-plus`, not `vite`. Tests import from `vitest`.
 
@@ -22,9 +22,7 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 ### Develop
 
 - `vp dev` - Run the development server
-- `vp check` - Run format, lint, and TypeScript type checks
-- `vp lint` - Run Oxlint
-- `vp fmt` - Run Oxfmt
+- `vp check`, `vp lint`, `vp fmt` - Do not use. Biome owns formatting and linting; run `biome check`.
 - `vp test` - Do not use. It runs the bundled Vitest fork against a config this repo no longer has; the suite runs on real Vitest via `bun run test`.
 
 ### Execute
@@ -66,12 +64,11 @@ Cataloguing a dependency is a manual, two-file edit. `vp add` writes a plain ver
 ## Common Pitfalls
 
 - Do not run package manager commands directly; use `vp` instead.
-- Do not try to run wrapped tools directly as `vp oxlint`; use `vp lint`.
+- Do not run Vite+'s bundled Oxlint or Oxfmt at all; they are no longer this repo's linter or formatter.
 - Built-in Vite+ commands do not run same-named `package.json` scripts. Use `vp run <script>` for scripts.
 - Do not install Oxlint, Oxfmt, or tsdown directly. Vite+ wraps them. Vitest is the exception: it is a direct dependency, and the suite runs on it rather than on the bundled fork.
 - Use `vp dlx` instead of package-manager-specific `npx` or `dlx` commands.
 - Import from `vite-plus`, not `vite`. The bundled Vitest is unused.
-- There is no need to install extra type-aware lint packages; `vp lint --type-aware` works out of the box.
 
 ## CI Integration
 
@@ -81,6 +78,6 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 - uses: voidzero-dev/setup-vp@v1
   with:
     cache: true
-- run: vp check
+- run: biome check
 - run: bun run test
 ```

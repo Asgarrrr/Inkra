@@ -1,7 +1,7 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { type Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import sidebarEntryKinds from "@shared/sidebar-entry-kinds.json";
+import type sidebarEntryKinds from "@shared/sidebar-entry-kinds.json";
 import type {
   ContentSearchResult,
   ContentSearchStats,

@@ -1,4 +1,4 @@
-import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { forceParsing, syntaxTreeAvailable } from "@codemirror/language";
 
 const PARSE_OVERSHOOT = 2000;

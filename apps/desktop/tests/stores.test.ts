@@ -1071,8 +1071,7 @@ describe("createPendingOpenDrainer", () => {
       nextPollStarted = resolve;
     });
 
-    let drainPendingOpens!: () => Promise<void>;
-    drainPendingOpens = createPendingOpenDrainer(takePendingOpen, async (payload) => {
+    const drainPendingOpens = createPendingOpenDrainer(takePendingOpen, async (payload) => {
       handled.push(payload.workspace);
     });
 

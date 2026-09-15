@@ -82,7 +82,8 @@ All docs except CLAUDE.md, AGENTS.md, TODOS.md, and CHANGELOG.md live in `./docs
 
 Frontend:
 
-- `vp check` — format, lint, and TypeScript type checks
+- `biome check` — format and lint (`biome check --write` to fix)
+- TypeScript type checks run with the app builds (`vp run desktop#build`, `vp run website#build`)
 - `bun run test` — JavaScript/TypeScript tests, via Vitest (`vitest run`)
 
 Rust (from `apps/desktop/src-tauri/`):

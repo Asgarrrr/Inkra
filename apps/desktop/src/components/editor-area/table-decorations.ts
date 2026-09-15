@@ -1,4 +1,4 @@
-import { type EditorState, type Range } from "@codemirror/state";
+import type { EditorState, Range } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import {

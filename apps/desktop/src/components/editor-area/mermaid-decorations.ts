@@ -1,9 +1,13 @@
-import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import { Decoration, type EditorView, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { foldableSyntaxFacet } from "@/lib/prosemark-core/main";
 import { renderMermaid } from "./mermaid-renderer";
-import { MERMAID_CANVAS_HEIGHT, MermaidCanvasHandle, mountMermaidCanvas } from "./mermaid-canvas";
+import {
+  MERMAID_CANVAS_HEIGHT,
+  type MermaidCanvasHandle,
+  mountMermaidCanvas,
+} from "./mermaid-canvas";
 import { openMermaidFullscreen } from "./mermaid-fullscreen";
 import "./mermaid-canvas.css";
 

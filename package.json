@@ -10,6 +10,7 @@
       "tools/*"
     ],
     "catalog": {
+      "@biomejs/biome": "2.5.13",
       "@codemirror/autocomplete": "^6.20.0",
       "@codemirror/commands": "^6.10.3",
       "@codemirror/lang-markdown": "^6.5.0",
@@ -53,13 +54,15 @@
   },
   "type": "module",
   "scripts": {
-    "ready": "vp fmt && vp lint && bun run test && vp run build -r",
+    "ready": "biome check --write && bun run typecheck && bun run test && vp run build -r",
     "dev": "vp run desktop#dev",
     "test": "vitest run",
     "prepare": "vp config",
-    "distribute": "./scripts/distribute.sh"
+    "distribute": "./scripts/distribute.sh",
+    "typecheck": "bun run --filter \"*\" typecheck"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },

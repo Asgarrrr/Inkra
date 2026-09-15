@@ -116,8 +116,9 @@
   --inkra-text-col-inset: max(
     var(--inkra-editor-side-padding, 4rem),
     calc(
-      (100% - var(--inkra-editor-outer-width, calc(734px + 4rem + 4rem))) / 2 +
-        var(--inkra-editor-side-padding, 4rem)
+      (100% - var(--inkra-editor-outer-width, calc(734px + 4rem + 4rem))) /
+      2 +
+      var(--inkra-editor-side-padding, 4rem)
     )
   );
   clip-path: inset(

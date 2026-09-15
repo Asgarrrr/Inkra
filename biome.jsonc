@@ -1,0 +1,74 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": false,
+    // Ported from the `fmt`/`lint` ignorePatterns this replaces.
+    "includes": ["**", "!apps/website/src/routeTree.gen.ts", "!.wrangler"]
+  },
+  // Measured against the Oxfmt output this replaces: these three settings leave
+  // five files divergent. Changing any of them reformats the repo.
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        // New coverage: Oxlint ran no a11y rules here. The 16 findings are real
+        // debt, but auditing them is a separate change from swapping a wrapper.
+        "noStaticElementInteractions": "off",
+        "noSvgWithoutTitle": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "useSemanticElements": "off"
+      },
+      "complexity": {
+        // New coverage: Oxlint linted no CSS. 13 findings, all deliberate.
+        "noImportantStyles": "off",
+        // Finds no defect. Every site is a boolean guard (`!x || !x.y`), where
+        // the rewrite is equivalent; Biome classifies its own fix as unsafe.
+        "useOptionalChain": "off"
+      },
+      "correctness": {
+        // The extra deps are deliberate invalidation triggers, carried with
+        // comments saying so. Biome labels its own fix "unsafe"; it is.
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        // New coverage: Oxlint linted no CSS.
+        "noDescendingSpecificity": "off",
+        // Rewriting `!` is a runtime-semantics change dressed as style.
+        "noNonNullAssertion": "off",
+        // Finds no defect, and turns fenced-string concatenation into a
+        // template full of escaped backticks.
+        "useTemplate": "off"
+      },
+      "suspicious": {
+        // Every site is a positional list (text segments, chars, heading ticks)
+        // where the index is the identity. Changing keys changes reconciliation.
+        "noArrayIndexKey": "off",
+        // Every site is the canonical `while ((m = re.exec(s)) !== null)` loop
+        // or a memoizing `??=`. Rewriting them is churn, not a fix.
+        "noAssignInExpressions": "off",
+        // The two sites mirror React's own `useEffect` signature on purpose.
+        "noConfusingVoidType": "off",
+        // The fix is `Object.hasOwn`, which is ES2022; both apps declare
+        // `lib: ES2020`. The existing `.call` form is already the safe one.
+        "noPrototypeBuiltins": "off"
+      }
+    }
+  },
+  "javascript": { "formatter": { "quoteStyle": "double" } },
+  // App.css uses Tailwind 4's `@theme` and `@utility`. Without this Biome
+  // cannot parse the file, so it silently lints nothing in it.
+  "css": { "parser": { "tailwindDirectives": true } },
+  // The repo's import order is not alphabetical and sorting it would touch
+  // almost every file. Sorting is a separate decision from formatting.
+  "assist": { "enabled": true, "actions": { "source": { "organizeImports": "off" } } },
+  "overrides": [
+    {
+      // Mocha binds `this` in `function ()` callbacks; arrows would break it.
+      "includes": ["apps/desktop/e2e/**"],
+      "linter": { "rules": { "complexity": { "useArrowFunction": "off" } } }
+    }
+  ]
+}

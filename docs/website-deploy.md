@@ -51,4 +51,4 @@ curl -I https://<deployed-url>
 - Do not use GitHub Pages for this website.
 - Do not rely on Cloudflare Git Builds for this website unless this document is updated first.
 - Keep `wrangler.jsonc` at the repository root so local Wrangler deploys use the same Worker settings.
-- Run `vp check` before deploying source changes when practical.
+- Run `biome check` before deploying source changes when practical.

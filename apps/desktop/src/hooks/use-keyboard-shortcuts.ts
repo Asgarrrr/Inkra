@@ -116,7 +116,7 @@ export function useKeyboardShortcuts() {
       if (mod && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
         if (isCompactFileMode) return;
-        const n = parseInt(e.key) - 1;
+        const n = parseInt(e.key, 10) - 1;
         if (n < tabs.length) {
           setActiveTab(tabs[n]!.id);
         }

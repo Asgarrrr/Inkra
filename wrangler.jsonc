@@ -3,6 +3,6 @@
   "name": "inkra-website",
   "compatibility_date": "2026-04-30",
   "assets": {
-    "directory": "apps/website/dist/client",
-  },
+    "directory": "apps/website/dist/client"
+  }
 }

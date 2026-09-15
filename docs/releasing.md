@@ -6,7 +6,7 @@ How to cut a signed, notarized macOS release and publish it so the in-app update
 
 Before bumping anything:
 
-- `vp check` and `bun run test` pass.
+- `biome check` and `bun run test` pass.
 - The `CHANGELOG.md` entry for this release already exists. If it doesn't, write it first as a separate commit — release commits should only touch version fields.
 
 `scripts/distribute.sh` enforces the rest itself: it refuses to run unless you're on `master` with a clean working tree, fast-forward of `origin/master`, and the target tag doesn't already exist locally or on origin.

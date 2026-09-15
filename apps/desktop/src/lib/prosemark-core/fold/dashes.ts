@@ -14,9 +14,9 @@ export const dashMarkdownSyntaxExtension: MarkdownConfig = {
     {
       name: "Dash",
       parse: (cx: InlineContext, next: number, pos: number): number => {
-        if (next !== 45 /* - */ || (pos > 1 && cx.char(pos - 1) == 45)) return -1;
+        if (next !== 45 /* - */ || (pos > 1 && cx.char(pos - 1) === 45)) return -1;
 
-        let i;
+        let i: number;
         for (i = pos; i < cx.end && cx.char(i) === 45; i++);
         if (i - pos > 3) return -1;
 

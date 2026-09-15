@@ -50,7 +50,10 @@ export function openEditorSearch(view: EditorView) {
 export function closeEditorSearch({
   view,
   restoreFocus = false,
-}: { view?: EditorView; restoreFocus?: boolean } = {}) {
+}: {
+  view?: EditorView;
+  restoreFocus?: boolean;
+} = {}) {
   const currentView = useEditorSearchStore.getState().view;
   if (view && currentView !== view) return;
 

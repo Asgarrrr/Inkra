@@ -1,4 +1,4 @@
-import { EditorView, keymap } from "@codemirror/view";
+import { type EditorView, keymap } from "@codemirror/view";
 import { foldExtension } from "./fold";
 import { EditorSelection, type Text } from "@codemirror/state";
 import { decorationHasReplaceWidget } from "./utils";
@@ -48,8 +48,8 @@ const maybeRevealAtWidgetBoundary = (view: EditorView, direction: "up" | "down")
 
   decorations.between(cursorAt - 1, cursorAt + 1, (from, to, deco) => {
     if (!decorationHasReplaceWidget(deco)) return;
-    if (direction === "down" && cursorAt == from - 1) target = from;
-    if (direction === "up" && cursorAt == to + 1) target = to;
+    if (direction === "down" && cursorAt === from - 1) target = from;
+    if (direction === "up" && cursorAt === to + 1) target = to;
     if (target !== null) return false;
   });
 

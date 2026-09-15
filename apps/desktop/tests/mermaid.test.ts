@@ -9,8 +9,9 @@ vi.mock("beautiful-mermaid", () => {
 });
 
 // Import after mock setup
-const { renderMermaid, clearMermaidCache } =
-  await import("../src/components/editor-area/mermaid-renderer");
+const { renderMermaid, clearMermaidCache } = await import(
+  "../src/components/editor-area/mermaid-renderer"
+);
 
 describe("renderMermaid", () => {
   beforeEach(() => {

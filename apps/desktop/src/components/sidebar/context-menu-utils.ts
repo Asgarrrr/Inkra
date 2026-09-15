@@ -1,4 +1,4 @@
-import { type Platform } from "@/lib/platform";
+import type { Platform } from "@/lib/platform";
 
 export { detectPlatform, type Platform } from "@/lib/platform";
 
