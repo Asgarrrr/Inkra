@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-14
+
+- Scale the editor's headroom with the window height. The side padding already shrank in narrow windows, but the space above the note stayed a fixed 128–144px, so a small window paired 24px of side padding with a large empty band under the tab bar. The top padding is now `clamp(3rem, 12vh, 9rem)`, defined next to the side padding in `App.css`. The properties panel also stops double-paying its bottom gap (notes without properties no longer reserve it at all), and the property key column shrinks with the note so keys and values stay visually paired at narrow widths.
+
 ## 2026-09-13
 
 - Fix the marketing site's demo-video strip scrolling over the feature list on phones and tablets. The hero column's desktop-only `position: sticky` was still active in the stacked mobile layout, so the hero stayed pinned while the video strip slid up underneath the features. Below 900px the hero now scrolls with the page and grows to at least one screen (`100svh`) instead of exactly one, so it can never overflow into the strip; the features still sit at the bottom of the first screen.

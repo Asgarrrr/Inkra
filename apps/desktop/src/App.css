@@ -104,6 +104,9 @@
   --chrome-drag-height: 72px;
   --writer-editor-max-width: 734px;
   --writer-editor-side-padding: clamp(1.5rem, 4vw, 4rem);
+  /* Scales with the window like the side padding does, so a small window
+     doesn't pair 24px of side padding with 144px of headroom. */
+  --writer-editor-top-padding: clamp(3rem, 12vh, 9rem);
   --writer-editor-outer-width: calc(
     var(--writer-editor-max-width) + var(--writer-editor-side-padding) +
       var(--writer-editor-side-padding)

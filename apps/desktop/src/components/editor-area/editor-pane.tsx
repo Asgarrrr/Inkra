@@ -55,10 +55,11 @@ export const EditorPane = memo(function EditorPane({ path, isActive }: EditorPan
     >
       <EditorScrollContainer ref={scrollContainerRef}>
         <div
-          className="mx-auto w-full pt-32 pb-6 md:pt-[9rem]"
+          className="mx-auto w-full"
           style={{
             maxWidth: "var(--writer-editor-outer-width)",
             boxSizing: "border-box",
+            paddingTop: "var(--writer-editor-top-padding)",
             paddingLeft: "var(--writer-editor-side-padding)",
             paddingRight: "var(--writer-editor-side-padding)",
           }}
