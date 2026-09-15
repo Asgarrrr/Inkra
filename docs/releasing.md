@@ -11,6 +11,12 @@ Before bumping anything:
 
 `scripts/distribute.sh` enforces the rest itself: it refuses to run unless you're on `master` with a clean working tree, fast-forward of `origin/master`, and the target tag doesn't already exist locally or on origin.
 
+## Credentials
+
+Release credentials live in a gitignored `.env` at the repository root. Copy `.env.example` to `.env` and fill it in — that file documents every variable and where its value comes from. None of it is needed to develop; a clone with no `.env` builds and runs, with telemetry compiled out.
+
+The one credential you cannot produce locally is `APPLE_SIGNING_IDENTITY`. It must name a **Developer ID Application** certificate, which Apple issues only under a paid Developer Program membership. An Apple Development certificate is what Xcode installs for free, looks almost identical in the keychain, and will not notarize. List what you have with `security find-identity -v -p codesigning`; `distribute.sh` matches the configured name against that list before it does anything irreversible.
+
 ## Step 1 — Bump the version
 
 The authoritative version lives in `apps/desktop/src-tauri/tauri.conf.json`. `scripts/distribute.sh` reads it from there to derive the tag (`v<version>`) and DMG filename. Three other files must be kept in sync so the crate, npm package, and Tauri config all agree:
@@ -47,7 +53,7 @@ Run from the repo root, passing the notes file:
 
 The script will, in order:
 
-1. Validate `.env`, signing credentials, and the notes file (must exist and be non-empty). Telemetry's `INKRA_POSTHOG_KEY` is read from `.env` too; the script refuses to build without it unless `INKRA_RELEASE_WITHOUT_TELEMETRY=1` is set, because a keyless release works normally and simply never reports anything, which is easy to miss — see [telemetry.md](./telemetry.md).
+1. Validate `.env`, signing credentials, and the notes file (must exist and be non-empty). Telemetry's `INKRA_POSTHOG_KEY` is read from `.env` too; the script refuses to build without it unless `INKRA_RELEASE_WITHOUT_TELEMETRY=1` is set, because a keyless release works normally and simply never reports anything, which is easy to miss — see [telemetry.md](./telemetry.md). It then resolves the `vp` binary and confirms `APPLE_SIGNING_IDENTITY` matches a certificate in the keychain — both would otherwise fail only after the push and the release build.
 2. Run pre-flight git checks (on master, clean tree, fast-forward of origin, tag doesn't already exist).
 3. Push `master` to origin so the commit the release will point at is published before the build starts.
 4. Build the desktop crate in release mode (`vp exec tauri build --bundles app,dmg`).

@@ -75,6 +75,36 @@ if [ -z "${INKRA_POSTHOG_KEY:-}" ] && [ "${INKRA_RELEASE_WITHOUT_TELEMETRY:-}" !
   exit 1
 fi
 
+# The release build runs through `vp`, but the toolchain is a workspace
+# dependency rather than a global CLI, so a bare `vp` only resolves when a
+# package runner has already put `node_modules/.bin` on PATH. Resolve it here:
+# the build is the first thing after `git push origin master`, and a PATH
+# problem discovered there leaves the branch pushed with nothing to show for it.
+VP_BIN="$(command -v vp || true)"
+if [ -z "$VP_BIN" ] && [ -x "$ROOT_DIR/node_modules/.bin/vp" ]; then
+  VP_BIN="$ROOT_DIR/node_modules/.bin/vp"
+fi
+if [ -z "$VP_BIN" ]; then
+  echo "Error: vp not found on PATH or in $ROOT_DIR/node_modules/.bin"
+  echo "Run 'vp install' from the repository root first."
+  exit 1
+fi
+
+# Signing and notarization both need a Developer ID Application identity, which
+# an Apple Development certificate does not satisfy. Left to fail on its own,
+# that surfaces after the full release build and a round trip to Apple — so
+# match the configured name against the keychain up front.
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -qF "$APPLE_SIGNING_IDENTITY"; then
+  echo "Error: no codesigning identity in the keychain matches APPLE_SIGNING_IDENTITY"
+  echo "  looking for: $APPLE_SIGNING_IDENTITY"
+  echo "  available:"
+  security find-identity -v -p codesigning 2>/dev/null | sed 's/^/  /'
+  echo ""
+  echo "Notarized releases need a 'Developer ID Application' certificate, issued"
+  echo "only under a paid Apple Developer Program membership."
+  exit 1
+fi
+
 # Read version from tauri.conf.json
 TAURI_CONF="$ROOT_DIR/apps/desktop/src-tauri/tauri.conf.json"
 VERSION=$(python3 -c "import json; print(json.load(open('$TAURI_CONF'))['version'])")
@@ -127,7 +157,7 @@ echo "Building Inkra $TAG..."
 
 # Build signed and notarized DMG + updater artifacts (.app.tar.gz + .sig).
 cd "$ROOT_DIR/apps/desktop"
-vp exec tauri build --bundles app,dmg
+"$VP_BIN" exec tauri build --bundles app,dmg
 
 BUNDLE_DIR="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle"
 DMG_DIR="$BUNDLE_DIR/dmg"
