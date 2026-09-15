@@ -1,17 +1,20 @@
 import { useState, type MouseEventHandler } from "react";
 import { useRefreshDirectory } from "@/hooks/use-file-tree";
-import { useBooleanSetting, useSetSetting } from "@/hooks/use-settings";
+import { useBooleanSetting, useSetSetting, useSetting } from "@/hooks/use-settings";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import { getWorkspaceIdentity, isCurrentWorkspaceIdentity } from "@/hooks/workspace-api";
 import * as tauri from "@/lib/tauri";
 import { createSidebarEntryAndRename } from "./create-sidebar-entry-and-rename";
 import { showSidebarSurfaceContextMenu } from "./sidebar-surface-context-menu";
 import { openSidebarDirectoryInTerminal } from "./sidebar-terminal-action";
+import { DEFAULT_SIDEBAR_SORT_MODE, isSidebarSortMode } from "./sidebar-sort";
 
 export function useSidebarSurface() {
   const setSetting = useSetSetting();
   const showSearch = useBooleanSetting("appearance.sidebar-show-search");
   const showRecents = useBooleanSetting("appearance.sidebar-show-recents");
+  const sortSetting = useSetting("appearance.sidebar-sort");
+  const sortMode = isSidebarSortMode(sortSetting) ? sortSetting : DEFAULT_SIDEBAR_SORT_MODE;
   const root = useWorkspaceRoot();
   const refreshDirectory = useRefreshDirectory();
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
@@ -46,6 +49,7 @@ export function useSidebarSurface() {
       showRecents,
       workspaceActions: root
         ? {
+            sortMode,
             onNewFile: () => createRootEntry("file"),
             onNewFolder: () => createRootEntry("folder"),
             onOpenInTerminal: () => {
@@ -56,6 +60,9 @@ export function useSidebarSurface() {
                 "Failed to open workspace folder",
                 tauri.openWorkspaceInFileManager,
               ),
+            onSortModeChange: (mode) => {
+              void setSetting("appearance.sidebar-sort", mode);
+            },
           }
         : null,
       onToggleSearch: (visible) => {
