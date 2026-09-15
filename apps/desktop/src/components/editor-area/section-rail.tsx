@@ -16,6 +16,8 @@ import "./section-rail.css";
 const TICK_WIDTH = 8;
 const TICK_HEIGHT = 1;
 const TICK_GAP = 6;
+// Below this many headings the rail is noise: a short note needs no map.
+const MIN_HEADINGS = 5;
 const RAIL_EDGE_INSET = 0;
 const RAIL_INNER_WIDTH = TICK_WIDTH + 2;
 const RAIL_ZONE_WIDTH = RAIL_EDGE_INSET + RAIL_INNER_WIDTH;
@@ -82,7 +84,7 @@ export function SectionRail({ filePath, view, scrollContainerRef }: SectionRailP
     scrollPosToSafeTop(view, scroller, heading.pos, "auto");
   };
 
-  if (headings.length === 0) return null;
+  if (headings.length < MIN_HEADINGS) return null;
 
   const tickStackHeight =
     headings.length * TICK_HEIGHT + Math.max(0, headings.length - 1) * TICK_GAP;
