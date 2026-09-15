@@ -104,12 +104,13 @@
   --chrome-drag-height: 72px;
   --writer-editor-max-width: 734px;
   /* One gap around the note: the same distance from the top edge and from
-     the sides, scaling with the window so a small window stays balanced.
-     Bounded by the narrower axis so a tall, narrow window keeps its text
-     column instead of spending it on side gaps. */
-  --writer-editor-padding: clamp(1.5rem, min(12vh, 4vw), 9rem);
+     the sides, scaling with the window height so a small window stays
+     balanced. The sides additionally cap at a share of the width, so a
+     tall, narrow window keeps its text column; the top gap never shrinks
+     for that reason. */
+  --writer-editor-padding: clamp(3rem, 12vh, 9rem);
   --writer-editor-top-padding: var(--writer-editor-padding);
-  --writer-editor-side-padding: var(--writer-editor-padding);
+  --writer-editor-side-padding: min(var(--writer-editor-padding), clamp(1.5rem, 8vw, 9rem));
   --writer-editor-outer-width: calc(
     var(--writer-editor-max-width) + var(--writer-editor-side-padding) +
       var(--writer-editor-side-padding)
