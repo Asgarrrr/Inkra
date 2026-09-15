@@ -328,7 +328,7 @@ a {
 
   .caption {
     margin-top: 16px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .features {
@@ -336,7 +336,7 @@ a {
   }
 
   .feature {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 140%;
   }
 
@@ -373,7 +373,7 @@ a {
 
 @media (max-width: 599px) {
   .feature {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 140%;
   }
 
