@@ -87,7 +87,7 @@ Frontend:
 
 Rust (from `apps/desktop/src-tauri/`):
 
-- `cargo test`
+- `cargo test --all-targets` — **not** bare `cargo test`, which runs zero of them. The lib declares `crate-type = ["staticlib", "cdylib", "rlib"]` for the Tauri build, and Cargo does not run the lib test harness for that target on its own; every one of the crate's tests lives there.
 - `cargo clippy`
 - `cargo fmt --check`
 
