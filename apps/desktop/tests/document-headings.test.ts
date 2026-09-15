@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { buildSlugIndex, parseDocumentHeadings } from "../src/hooks/use-document-headings";
 
 describe("parseDocumentHeadings", () => {

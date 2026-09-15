@@ -1,6 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { mocked } from "./helpers/vi-compat";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  ...actualTauriCore,
   invoke: vi.fn(),
   Channel: class {
     onmessage: ((message: unknown) => void) | null = null;
@@ -14,7 +17,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import * as ipc from "../src/lib/tauri";
 
-const mockedInvoke = vi.mocked(invoke);
+const mockedInvoke = mocked(invoke);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -157,7 +160,7 @@ describe("workspace IPC wrappers", () => {
 
   test("pickWorkspace opens a directory dialog", async () => {
     const { open } = await import("@tauri-apps/plugin-dialog");
-    vi.mocked(open).mockResolvedValue("/selected/folder");
+    mocked(open).mockResolvedValue("/selected/folder");
     const result = await ipc.pickWorkspace();
     expect(open).toHaveBeenCalledWith({
       directory: true,

@@ -1,7 +1,10 @@
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test, vi } from "bun:test";
+import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { mocked } from "./helpers/vi-compat";
 import { formatMarkdownDestination, getParentDir, resolveImagePath } from "../src/lib/paths";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -64,7 +67,7 @@ describe("getParentDir", () => {
 describe("saveClipboardImage IPC", () => {
   test("calls correct command", async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const mockedInvoke = vi.mocked(invoke);
+    const mockedInvoke = mocked(invoke);
     mockedInvoke.mockResolvedValue({
       relative_path: "note-assets/img.png",
       absolute_path: "/ws/note-assets/img.png",

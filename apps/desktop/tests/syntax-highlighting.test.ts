@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { __testSyntaxHighlighting } from "../src/lib/prosemark-core/syntaxHighlighting";
 
 describe("baseTheme", () => {

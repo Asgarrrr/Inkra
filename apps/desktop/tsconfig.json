@@ -19,8 +19,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "types": ["bun"],
     "paths": { "@/*": ["./src/*"], "@shared/*": ["./shared/*"] }
   },
-  "include": ["src", "shared"],
+  "include": ["src", "shared", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

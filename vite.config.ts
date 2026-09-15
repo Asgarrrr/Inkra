@@ -11,7 +11,4 @@ export default defineConfig({
     ignorePatterns: ["apps/website/src/routeTree.gen.ts", ".wrangler/**"],
     options: { typeAware: true, typeCheck: true },
   },
-  test: {
-    projects: ["apps/*", "packages/*"],
-  },
 });

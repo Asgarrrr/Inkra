@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { EditorState } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";

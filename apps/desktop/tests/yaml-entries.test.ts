@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { parseYamlEntries, serializeYamlEntries, type YamlEntry } from "../src/lib/yaml-entries";
 
 // `id` is a non-deterministic React-key field (a module-level counter) that is

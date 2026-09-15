@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vite-plus/test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";

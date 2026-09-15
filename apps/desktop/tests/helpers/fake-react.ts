@@ -1,6 +1,7 @@
 /** Minimal hooks runtime so a real hook module can be executed under
  *  `environment: "node"`, where there is no DOM to render into. Mock it over
- *  `react` with `vi.mock("react", () => import("./helpers/fake-react"))`.
+ *  `react` with `import * as fakeReact from "./helpers/fake-react"` followed by
+ *  `vi.mock("react", () => fakeReact)`.
  *  One hook instance at a time. */
 
 type Slot = { value?: unknown; deps?: unknown[]; cleanup?: (() => void) | void };

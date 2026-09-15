@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { applyContentSearchEvent, emptySession } from "../src/lib/content-search-session";
 import type { ContentSearchEvent } from "../src/lib/tauri";
 import type { ContentSearchResult, ContentSearchStats } from "../src/types/fs";

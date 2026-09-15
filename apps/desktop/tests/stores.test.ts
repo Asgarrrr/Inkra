@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { mocked, waitFor } from "./helpers/vi-compat";
 
 // Mock the tauri API before importing stores
 vi.mock("@tauri-apps/api/core", () => ({
+  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -11,6 +14,7 @@ vi.mock("@/lib/theme", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
+import type { PendingOpenPayload } from "../src/lib/tauri";
 import { useEditorStore } from "../src/stores/editor-store";
 import { useSettingsStore } from "../src/stores/settings-store";
 import { useUIStore } from "../src/stores/ui-store";
@@ -23,7 +27,7 @@ import { getEditorSessionSnapshot } from "../src/stores/editor-store";
 // single-file watcher whenever the active file changes in a compact window.
 import "../src/lib/standalone-watch";
 
-const mockedInvoke = vi.mocked(invoke);
+const mockedInvoke = mocked(invoke);
 
 function tabPaths() {
   return useEditorStore
@@ -155,7 +159,16 @@ describe("workspace-store", () => {
       directoryCache: new Map([
         [
           "/test",
-          [{ name: "a.md", path: "/test/a.md", is_dir: false, is_markdown: true, modified_at: 0 }],
+          [
+            {
+              name: "a.md",
+              path: "/test/a.md",
+              is_dir: false,
+              is_markdown: true,
+              modified_at: 0,
+              title: null,
+            },
+          ],
         ],
       ]),
     });
@@ -885,7 +898,7 @@ describe("workspace-store restoreFromBundle", () => {
     mockedInvoke.mockResolvedValue({ path: "/ws/a.md", content: "a", modified_at: 1 });
 
     await useWorkspaceStore.getState().restoreFromBundle({
-      workspace: { root: "/ws", name: "ws", file_count: 1 },
+      workspace: { root: "/ws", name: "ws", file_count: 1, epoch: 1 },
       entries: [],
       recent_workspaces: ["/ws"],
       session: null,
@@ -895,7 +908,7 @@ describe("workspace-store restoreFromBundle", () => {
 
     expect(useWorkspaceStore.getState().chromeMode).toBe("workspace");
     expect(useWorkspaceStore.getState().root).toBe("/ws");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(tabPaths()).toEqual(["/ws/a.md"]);
     });
   });
@@ -1016,7 +1029,7 @@ describe("createPendingOpenDrainer", () => {
       { workspace: "/a", file: null },
       { workspace: "/b", file: "/b/note.md" },
     ];
-    const handled: Array<{ workspace: string; file: string | null }> = [];
+    const handled: PendingOpenPayload[] = [];
     const drainPendingOpens = createPendingOpenDrainer(
       async () => queue.shift() ?? null,
       async (payload) => {
@@ -1036,7 +1049,7 @@ describe("createPendingOpenDrainer", () => {
     type TestPayload = { workspace: string; file: null };
 
     const queue = [{ workspace: "/a", file: null }];
-    const handled: string[] = [];
+    const handled: Array<string | null> = [];
     let nextPollStarted: (() => void) | null = null;
     let blockOnEmpty = true;
     const nextPollResponse = createDeferred<TestPayload | null>();
@@ -1085,7 +1098,7 @@ describe("createPendingOpenDrainer", () => {
       { workspace: "/broken", file: null },
       { workspace: "/ok", file: null },
     ];
-    const handled: string[] = [];
+    const handled: Array<string | null> = [];
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const drainPendingOpens = createPendingOpenDrainer(
       async () => queue.shift() ?? null,

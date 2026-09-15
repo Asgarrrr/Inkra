@@ -1,4 +1,5 @@
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test, vi } from "bun:test";
+import { waitFor } from "./helpers/vi-compat";
 import {
   createFolderTerminalAction,
   openSidebarDirectoryInTerminal,
@@ -13,7 +14,7 @@ describe("openSidebarDirectoryInTerminal", () => {
       showError: vi.fn(),
     });
 
-    expect(openDirectory).toHaveBeenCalledOnce();
+    expect(openDirectory).toHaveBeenCalledTimes(1);
     expect(openDirectory).toHaveBeenCalledWith("/workspace/drafts/chapter one");
   });
 
@@ -25,7 +26,7 @@ describe("openSidebarDirectoryInTerminal", () => {
     );
 
     action();
-    await vi.waitFor(() => expect(openDirectory).toHaveBeenCalledOnce());
+    await waitFor(() => expect(openDirectory).toHaveBeenCalledTimes(1));
 
     expect(openDirectory).toHaveBeenCalledWith("/workspace/selected-folder");
   });

@@ -18,10 +18,6 @@ export default defineConfig(async () => ({
       "@shared": new URL("./shared", import.meta.url).pathname,
     },
   },
-  test: {
-    environment: "node",
-    include: ["tests/**/*.test.ts"],
-  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

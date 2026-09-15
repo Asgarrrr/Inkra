@@ -28,7 +28,7 @@ vp dev
 
 ```bash
 vp check
-vp test
+bun run test
 ```
 
 Rust validation runs from the Tauri crate:

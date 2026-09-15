@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from "vite-plus/test";
+import { describe, expect, test, beforeEach } from "bun:test";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { GFM } from "@lezer/markdown";

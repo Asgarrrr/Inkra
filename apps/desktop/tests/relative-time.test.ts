@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
 import { formatRelativeTime } from "../src/lib/relative-time";
 
 const NOW = 1_000_000;

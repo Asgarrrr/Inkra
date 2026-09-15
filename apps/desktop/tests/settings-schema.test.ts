@@ -1,4 +1,6 @@
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   getPrimaryDefs,
   SETTINGS_SCHEMA,
@@ -7,12 +9,21 @@ import {
 } from "../src/lib/settings-schema";
 
 // Every preset folder ships one JSON per mode holding exactly the editable
-// primaries. Glob-load them the same way a preset picker would so adding a
+// primaries. Load the whole folder rather than naming the presets, so adding a
 // schema primary (e.g. mono-font) fails here until every preset defines it.
-const presetFiles = import.meta.glob<Record<string, unknown>>("../shared/themes/*/*.json", {
-  eager: true,
-  import: "default",
-});
+const themesDir = new URL("../shared/themes/", import.meta.url).pathname;
+const presetFiles: Record<string, Record<string, unknown>> = Object.fromEntries(
+  readdirSync(themesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((preset) =>
+      readdirSync(join(themesDir, preset.name))
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => [
+          `themes/${preset.name}/${file}`,
+          JSON.parse(readFileSync(join(themesDir, preset.name, file), "utf8")),
+        ]),
+    ),
+);
 
 describe("typography settings", () => {
   test("keep their persisted keys and CSS bindings under the Typography category", () => {

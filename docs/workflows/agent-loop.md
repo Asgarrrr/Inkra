@@ -25,7 +25,7 @@ Keep it tight. Another agent should be able to retrace your steps by reading the
 1. Check the git workspace state. If the working tree is dirty with WIP, either finish it cleanly or stash it. Note this in your worksheet.
 2. Run validation to confirm the project is healthy before starting:
    - `vp check` — format, lint, and TypeScript type checks
-   - `vp test` — JavaScript/TypeScript tests
+   - `bun run test` — JavaScript/TypeScript tests
    - `cargo test`, `cargo clippy`, `cargo fmt --check` from `apps/desktop/src-tauri/`
 3. Fix any failures before entering the loop.
 
@@ -120,7 +120,7 @@ Return to Step 1 and continue with the next task. Keep progress clear and avoid 
 Once the queue is exhausted:
 
 1. Run the full validation suite:
-   - `vp check` and `vp test`
+   - `vp check` and `bun run test`
    - `cargo test`, `cargo clippy`, `cargo fmt --check` from `apps/desktop/src-tauri/`
 2. Fix any regressions before wrapping up.
 3. Write a session summary:

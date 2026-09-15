@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test, vi } from "bun:test";
 import {
   canonicalWikiTarget,
   normalizeWikiTarget,

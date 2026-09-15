@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { mocked } from "./helpers/vi-compat";
 
 // The parse target is the whole contract of `parseThrough`, and it is invisible
 // through a fake view: `ensureSyntaxTree` short-circuits to `null` without a
@@ -13,14 +14,15 @@ import { forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { parseThrough } from "../src/components/editor-area/viewport-parse";
 
-const mockedForceParsing = vi.mocked(forceParsing);
+const mockedForceParsing = mocked(forceParsing);
 
 function viewOfLength(length: number): EditorView {
   return { state: { doc: { length } } } as unknown as EditorView;
 }
 
 function lastCall() {
-  const call = mockedForceParsing.mock.calls.at(-1);
+  const calls = mockedForceParsing.mock.calls;
+  const call = calls[calls.length - 1];
   if (!call) throw new Error("forceParsing was never called");
   return { upto: call[1], budget: call[2] };
 }

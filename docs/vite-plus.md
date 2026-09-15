@@ -6,9 +6,9 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 
 - Use `vp` for package management and frontend tooling.
 - The underlying package manager is Bun, selected by `packageManager` in the root `package.json`. Do not call `bun`, pnpm, npm, or Yarn directly.
-- Use built-in Vite+ commands such as `vp dev`, `vp build`, `vp check`, `vp lint`, `vp fmt`, and `vp test`.
+- Use built-in Vite+ commands such as `vp dev`, `vp build`, `vp check`, `vp lint`, and `vp fmt`.
 - When a built-in `vp` command name conflicts with a `package.json` script, use `vp run <script>`.
-- Import JavaScript tooling APIs from `vite-plus` or `vite-plus/test`, not `vite` or `vitest`.
+- Import JavaScript tooling APIs from `vite-plus`, not `vite`. Tests import from `bun:test`.
 
 ## Common Commands
 
@@ -25,7 +25,7 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 - `vp check` - Run format, lint, and TypeScript type checks
 - `vp lint` - Run Oxlint
 - `vp fmt` - Run Oxfmt
-- `vp test` - Run tests through the bundled Vitest
+- `vp test` - Do not use. The suite runs on `bun test`; use `bun run test`.
 
 ### Execute
 
@@ -66,11 +66,11 @@ Cataloguing a dependency is a manual, two-file edit. `vp add` writes a plain ver
 ## Common Pitfalls
 
 - Do not run package manager commands directly; use `vp` instead.
-- Do not try to run wrapped tools directly as `vp vitest` or `vp oxlint`; use `vp test` and `vp lint`.
+- Do not try to run wrapped tools directly as `vp oxlint`; use `vp lint`.
 - Built-in Vite+ commands do not run same-named `package.json` scripts. Use `vp run <script>` for scripts.
 - Do not install Vitest, Oxlint, Oxfmt, or tsdown directly. Vite+ wraps them.
 - Use `vp dlx` instead of package-manager-specific `npx` or `dlx` commands.
-- Import from `vite-plus` or `vite-plus/test`, not `vite` or `vitest`.
+- Import from `vite-plus`, not `vite`. The bundled Vitest is unused.
 - There is no need to install extra type-aware lint packages; `vp lint --type-aware` works out of the box.
 
 ## CI Integration
@@ -82,5 +82,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
   with:
     cache: true
 - run: vp check
-- run: vp test
+- run: bun run test
 ```

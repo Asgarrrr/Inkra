@@ -1,6 +1,9 @@
-import { describe, expect, test, vi } from "vite-plus/test";
+import { describe, expect, test, vi } from "bun:test";
+import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { stubGlobal } from "./helpers/vi-compat";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -17,7 +20,7 @@ import { flashMatchRanges } from "../src/components/editor-area/match-flash";
 // `environment: "node"` has no DOM, and building the list reads `document.body`
 // to place the wiki-link tooltips. Nothing here mounts a view, so a stand-in
 // the facet can hold is enough.
-vi.stubGlobal("document", { body: {} });
+stubGlobal("document", { body: {} });
 
 /** The extension list the app actually mounts. A field left out of it makes
  *  every effect dispatched at it a silent no-op, which no test of the field's

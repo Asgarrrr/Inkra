@@ -1,6 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { mocked } from "./helpers/vi-compat";
 
 vi.mock("@tauri-apps/api/core", () => ({
+  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -26,7 +29,7 @@ const DOC_LENGTH = 100_000;
 // cannot import. Pinned by value: changing the fade distance fails the tests
 // below rather than silently moving where every jump lands.
 const SAFE_MARGIN = 140;
-const mockedParseThrough = vi.mocked(parseThrough);
+const mockedParseThrough = mocked(parseThrough);
 
 /** The browser clamps `scrollTop` to the scrollable range and reports the
  *  clamped value back, which is the whole point of the write-back. */
