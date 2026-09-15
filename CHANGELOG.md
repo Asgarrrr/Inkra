@@ -2,7 +2,7 @@
 
 ## 2026-09-14
 
-- Scale the editor's headroom with the window height. The side padding already shrank in narrow windows, but the space above the note stayed a fixed 128–144px, so a small window paired 24px of side padding with a large empty band under the tab bar. The top padding is now `clamp(3rem, 12vh, 9rem)`, defined next to the side padding in `App.css`. The properties panel also stops double-paying its bottom gap (notes without properties no longer reserve it at all), and the property key column shrinks with the note so keys and values stay visually paired at narrow widths.
+- Scale the editor's headroom with the window height. The side padding already shrank in narrow windows, but the space above the note stayed a fixed 128–144px, so a small window paired 24px of side padding with a large empty band under the tab bar. Top and side padding now share one value, `clamp(3rem, 12vh, 9rem)`, defined once in `App.css`, so the gap above the note matches the gap beside it at every window size. The properties panel also stops double-paying its bottom gap (notes without properties no longer reserve it at all), and the property key column shrinks with the note so keys and values stay visually paired at narrow widths.
 
 ## 2026-09-13
 
