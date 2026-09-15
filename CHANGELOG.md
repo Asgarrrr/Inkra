@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-09-15
+
+- Tighten the marketing site's stacked layout below 900px. The demo-video strip now sits in normal flow at the bottom of the same container as the hero (the page fills one viewport with the hero taking the remaining height) instead of being pinned to the viewport, so it scrolls away with the content. The feature list and the headline also drop to their mobile sizes across the whole stacked range, so tablets match phones rather than inheriting the 48px desktop headline.
+
 ## 2026-09-14
 
 - Add a "Folders first" toggle to the sidebar's sort menu, which is now called "Sort by". On by default, it keeps folders above files exactly as before. Turn it off and folders and files sort together by the selected mode, the way `ls` lists a directory: by name in the name modes, and by each folder's own modified or created time in the time modes. The toggle is remembered and also appears under Preferences → Appearance as Sidebar Folders First.
