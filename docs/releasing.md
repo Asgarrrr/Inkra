@@ -17,6 +17,8 @@ Release credentials live in a gitignored `.env` at the repository root. Copy `.e
 
 The one credential you cannot produce locally is `APPLE_SIGNING_IDENTITY`. It must name a **Developer ID Application** certificate, which Apple issues only under a paid Developer Program membership. An Apple Development certificate is what Xcode installs for free, looks almost identical in the keychain, and will not notarize. List what you have with `security find-identity -v -p codesigning`; `distribute.sh` matches the configured name against that list before it does anything irreversible.
 
+To check which kind of Apple account you have, open Xcode → Settings → Accounts. A free account shows the team as **Personal Team**, and cannot issue a Developer ID. Until one is available, release with `--unsigned` — see [Unsigned releases](#unsigned-releases).
+
 ## Step 1 — Bump the version
 
 The authoritative version lives in `apps/desktop/src-tauri/tauri.conf.json`. `scripts/distribute.sh` reads it from there to derive the tag (`v<version>`) and DMG filename. Three other files must be kept in sync so the crate, npm package, and Tauri config all agree:
@@ -51,6 +53,8 @@ Run from the repo root, passing the notes file:
 ./scripts/distribute.sh --notes-file /tmp/release-notes.md
 ```
 
+Without a Developer ID certificate, add `--unsigned` (see [Unsigned releases](#unsigned-releases) below). Everything described here still applies except the signing and notarization steps.
+
 The script will, in order:
 
 1. Validate `.env`, signing credentials, and the notes file (must exist and be non-empty). Telemetry's `INKRA_POSTHOG_KEY` is read from `.env` too; the script refuses to build without it unless `INKRA_RELEASE_WITHOUT_TELEMETRY=1` is set, because a keyless release works normally and simply never reports anything, which is easy to miss — see [telemetry.md](./telemetry.md). It then resolves the `vp` binary and confirms `APPLE_SIGNING_IDENTITY` matches a certificate in the keychain — both would otherwise fail only after the push and the release build.
@@ -81,6 +85,18 @@ Click **Publish release**. Until you do, the in-app updater won't see the new ve
 
 - Confirm `https://github.com/Asgarrrr/Inkra/releases/latest/download/latest.json` resolves to the new version. The in-app updater hits this URL on launch (see `apps/desktop/src-tauri/tauri.conf.json`).
 - Existing installs will pick up the update on next launch.
+
+## Unsigned releases
+
+`--unsigned` cuts a release without Apple signing or notarization. It exists so the project can ship before a Developer ID certificate does, and it is a stopgap — prefer a signed release whenever one is possible.
+
+What changes:
+
+- The `APPLE_*` variables are no longer required, and any value present in `.env` is actively cleared before the build. tauri-cli decides whether to sign and whether to notarize from those variables alone, so a leftover value would otherwise produce a half-signed bundle that fails late.
+- `TAURI_SIGNING_PRIVATE_KEY` is still required, and telemetry is validated as usual. The updater signature is minisign and has nothing to do with Apple, so the updater keeps working exactly as it does for a signed release.
+- The script appends a Gatekeeper note to the release body. An unsigned app is refused on first open with a dialog that offers no way past it, so the workaround ships attached to the download: right-click the app in Applications, choose **Open**, confirm once.
+
+What it costs: every user meets that dialog on first launch, and the download carries no guarantee that the bundle is unmodified. Once a certificate exists, drop the flag — nothing else about the process changes.
 
 ## When things go wrong
 

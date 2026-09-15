@@ -7,6 +7,7 @@ ENV_FILE="$ROOT_DIR/.env"
 RELEASE_REPO="Asgarrrr/Inkra"
 
 NOTES_FILE=""
+UNSIGNED=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --notes-file)
@@ -17,9 +18,13 @@ while [ $# -gt 0 ]; do
       NOTES_FILE="${1#*=}"
       shift
       ;;
+    --unsigned)
+      UNSIGNED=1
+      shift
+      ;;
     *)
       echo "Error: unknown argument: $1"
-      echo "Usage: $0 --notes-file <path>"
+      echo "Usage: $0 --notes-file <path> [--unsigned]"
       exit 1
       ;;
   esac
@@ -47,6 +52,9 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "  TAURI_SIGNING_PRIVATE_KEY=\"/absolute/path/to/inkra-updater-key\""
   echo "  TAURI_SIGNING_PRIVATE_KEY_PASSWORD=\"\"  # empty if keypair has no password"
   echo "  INKRA_POSTHOG_KEY=\"phc_...\"  # or set INKRA_RELEASE_WITHOUT_TELEMETRY=1 to ship without it"
+  echo ""
+  echo "Without a Developer ID certificate, pass --unsigned: only the updater"
+  echo "key and the telemetry key are then required. See docs/releasing.md."
   exit 1
 fi
 
@@ -54,7 +62,16 @@ set -a
 source "$ENV_FILE"
 set +a
 
-for var in APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID TAURI_SIGNING_PRIVATE_KEY; do
+# The updater key is required either way — it is what existing installs check
+# an update against, and it has nothing to do with Apple. The Apple credentials
+# are what make a release signed and notarized, so they are required only when
+# that is what we are producing.
+REQUIRED_VARS="TAURI_SIGNING_PRIVATE_KEY"
+if [ "$UNSIGNED" -eq 0 ]; then
+  REQUIRED_VARS="APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID $REQUIRED_VARS"
+fi
+
+for var in $REQUIRED_VARS; do
   if [ -z "${!var:-}" ]; then
     echo "Error: $var is not set in .env"
     exit 1
@@ -90,19 +107,34 @@ if [ -z "$VP_BIN" ]; then
   exit 1
 fi
 
-# Signing and notarization both need a Developer ID Application identity, which
-# an Apple Development certificate does not satisfy. Left to fail on its own,
-# that surfaces after the full release build and a round trip to Apple — so
-# match the configured name against the keychain up front.
-if ! security find-identity -v -p codesigning 2>/dev/null | grep -qF "$APPLE_SIGNING_IDENTITY"; then
-  echo "Error: no codesigning identity in the keychain matches APPLE_SIGNING_IDENTITY"
-  echo "  looking for: $APPLE_SIGNING_IDENTITY"
-  echo "  available:"
-  security find-identity -v -p codesigning 2>/dev/null | sed 's/^/  /'
+if [ "$UNSIGNED" -eq 1 ]; then
+  # tauri-cli decides whether to sign, and whether to notarize, purely from
+  # these variables. `.env` has just been sourced, so any value sitting in it
+  # would reach the build and produce a half-signed bundle that fails late
+  # rather than the unsigned one that was asked for. Clear them explicitly.
+  unset APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+  unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD
+  unset APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_PATH
+
+  echo "warning: building UNSIGNED — macOS will block this app on first open."
+  echo "         Users must right-click the app and choose Open once."
   echo ""
-  echo "Notarized releases need a 'Developer ID Application' certificate, issued"
-  echo "only under a paid Apple Developer Program membership."
-  exit 1
+else
+  # Signing and notarization both need a Developer ID Application identity,
+  # which an Apple Development certificate does not satisfy. Left to fail on
+  # its own, that surfaces after the full release build and a round trip to
+  # Apple — so match the configured name against the keychain up front.
+  if ! security find-identity -v -p codesigning 2>/dev/null | grep -qF "$APPLE_SIGNING_IDENTITY"; then
+    echo "Error: no codesigning identity in the keychain matches APPLE_SIGNING_IDENTITY"
+    echo "  looking for: $APPLE_SIGNING_IDENTITY"
+    echo "  available:"
+    security find-identity -v -p codesigning 2>/dev/null | sed 's/^/  /'
+    echo ""
+    echo "Notarized releases need a 'Developer ID Application' certificate, issued"
+    echo "only under a paid Apple Developer Program membership. To release without"
+    echo "one, re-run with --unsigned."
+    exit 1
+  fi
 fi
 
 # Read version from tauri.conf.json
@@ -218,6 +250,26 @@ PY
 
 echo "Built: latest.json ($TARGET)"
 
+# An unsigned build is refused by Gatekeeper on first open, with a dialog that
+# offers no way past it — the release is unusable without the workaround, so it
+# ships attached to the download rather than left for the reader to find.
+RELEASE_NOTES_FILE="$NOTES_FILE"
+if [ "$UNSIGNED" -eq 1 ]; then
+  RELEASE_NOTES_FILE=$(mktemp -t inkra-release-notes)
+  trap 'rm -f "$RELEASE_NOTES_FILE"' EXIT
+  cat "$NOTES_FILE" > "$RELEASE_NOTES_FILE"
+  cat >> "$RELEASE_NOTES_FILE" <<'GATEKEEPER'
+
+---
+
+**This build is not signed by Apple.** The first time you open Inkra, macOS
+will say it cannot verify the developer and refuse to launch it. To get past
+that: open Applications, right-click Inkra, choose **Open**, then confirm in
+the dialog. macOS remembers the choice — subsequent launches, and in-app
+updates, work normally.
+GATEKEEPER
+fi
+
 # Create a DRAFT GitHub Release with DMG, updater tarball, signed manifest,
 # and the agent-drafted user-facing notes.
 echo ""
@@ -226,7 +278,7 @@ echo "Creating draft release $TAG on $RELEASE_REPO..."
 gh release create "$TAG" "$DMG_FILE" "$TAR_FILE" "$LATEST_JSON" \
   --repo "$RELEASE_REPO" \
   --title "Inkra $TAG" \
-  --notes-file "$NOTES_FILE" \
+  --notes-file "$RELEASE_NOTES_FILE" \
   --draft
 
 DRAFT_URL=$(gh release view "$TAG" --repo "$RELEASE_REPO" --json url --jq '.url')
