@@ -2,7 +2,7 @@
 
 ## 2026-09-15
 
-- Tighten the marketing site's stacked layout below 900px. The demo-video strip now sits in normal flow at the bottom of the same container as the hero (the page fills one viewport with the hero taking the remaining height) instead of being pinned to the viewport, so it scrolls away with the content. The feature list and the headline also drop to their mobile sizes across the whole stacked range, so tablets match phones rather than inheriting the 48px desktop headline.
+- Tighten the marketing site's stacked layout below 900px. The demo-video strip now sits in normal flow at the bottom of the same container as the hero (the page fills one viewport with the hero taking the remaining height) instead of being pinned to the viewport, so it scrolls away with the content. The feature list and the headline also drop to their mobile sizes across the whole stacked range, so tablets match phones rather than inheriting the 48px desktop headline. On the narrowest phones (375px and below) the headline, the download button, and the feature list shrink a step further so the first screen stays readable.
 
 ## 2026-09-14
 

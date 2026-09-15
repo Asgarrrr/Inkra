@@ -392,3 +392,19 @@ a {
     flex-shrink: 0;
   }
 }
+
+@media (max-width: 375px) {
+  .headline {
+    font-size: 20px;
+  }
+
+  .download {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .feature {
+    font-size: 11px;
+  }
+}
