@@ -33,6 +33,10 @@ those two apart.
 
 ## Current surface
 
+Snapshot taken when this spec was written, before any slice landed. The rows
+for the test files, `tauri.conf.json`, the app manifests, and the `vite`
+overrides are all settled by slice 1; the rest is still accurate.
+
 58 files reference `vite-plus`: 57 test files importing `vite-plus/test`, plus
 the root `vite.config.ts`. The rest is configuration:
 
@@ -56,20 +60,20 @@ runs ad hoc and is independent of this change.
 
 ## Target state
 
-Vitest disappears from the dependency tree entirely, rather than being promoted
-from `vite-plus/test` to a direct dependency.
+Vitest becomes a direct dependency instead of arriving bundled inside
+`vite-plus` as a fork nobody chose.
 
-| Role            | Today                             | After              |
-| --------------- | --------------------------------- | ------------------ |
-| Package manager | Bun, via `vp install`             | Bun, directly      |
-| Linter          | Oxlint, via `vp lint`             | Biome              |
-| Formatter       | Oxfmt, via `vp fmt`               | Biome              |
-| Test runner     | Vitest, via `vite-plus/test`      | `bun test`         |
-| Bundler         | `@voidzero-dev/vite-plus-core`    | Vite 8             |
-| Typecheck       | `tsc`, via `vp lint --type-check` | `tsc`              |
-| Commit hooks    | `.vite-hooks` + `vp staged`       | lefthook           |
-| Node version    | `vp env`                          | `.node-version`    |
-| Task running    | `vp run <pkg>#<script>`           | `bun run --filter` |
+| Role            | Before                            | After              | Status  |
+| --------------- | --------------------------------- | ------------------ | ------- |
+| Package manager | pnpm                              | Bun                | done    |
+| Bundler         | `@voidzero-dev/vite-plus-core`    | Vite 8             | done    |
+| Test runner     | Vitest fork, via `vite-plus/test` | Vitest 5           | done    |
+| Linter          | Oxlint, via `vp lint`             | Biome              | slice 2 |
+| Formatter       | Oxfmt, via `vp fmt`               | Biome              | slice 2 |
+| Typecheck       | `tsc`, via `vp lint --type-check` | `tsc`              | —       |
+| Commit hooks    | `.vite-hooks` + `vp staged`       | lefthook           | slice 3 |
+| Node version    | `vp env`                          | `.node-version`    | slice 3 |
+| Task running    | `vp run <pkg>#<script>`           | `bun run --filter` | slice 3 |
 
 ## Decisions taken
 
@@ -80,33 +84,29 @@ dependency, no wrapper. `engines.node` remains the declarative guard.
 lint-and-format option that is not itself a wrapper. Version 2.5.13, published
 2026-09-10.
 
-**`bun test` replaces Vitest outright, rather than Vitest replacing
-`vite-plus/test`.** This removes a dependency instead of swapping one, and it
-decouples the test suite from Vite entirely. That decoupling matters: Vitest 5
-peers on `vite ^6.4 || ^7 || ^8`, which the global `vite` override — pointing
-at `@voidzero-dev/vite-plus-core@0.3.2` — cannot satisfy. Adding real Vitest
-would have forced the bundler slice to land first. Going to `bun test` removes
-the constraint.
+**The test suite runs on Vitest 5, and the bundler slice lands before it.**
+This was decided the expensive way. The first attempt sent the suite to
+`bun test`, reasoning that Vitest 5 peers on `vite ^6.4 || ^7 || ^8`, which the
+global `vite` override — pointing at `@voidzero-dev/vite-plus-core@0.3.2` —
+could not satisfy, so real Vitest would have forced the bundler slice to land
+first.
 
-`bun:test` exports a `vi` compatibility object covering `fn`, `mock`, `spyOn`,
-`clearAllMocks`, `getTimerCount`, and the synchronous fake-timer API. Measured
-against the suite's actual usage, that covers 218 of the 245 `vi.*` call sites.
-The gaps, all small:
+That was a slicing artefact treated as a fact. Landing the bundler slice first
+dissolves the constraint instead of working around it, and then Vitest 5 is a
+drop-in.
 
-| Missing                                 | Call sites | Replacement                                             |
-| --------------------------------------- | ---------- | ------------------------------------------------------- |
-| `vi.mocked`                             | 19         | identity helper; it is a TypeScript type assertion only |
-| `vi.stubGlobal` / `vi.unstubAllGlobals` | 4          | save, assign, restore in a local helper                 |
-| `vi.waitFor`                            | 2          | small poll-with-timeout helper                          |
-| `vi.runOnlyPendingTimersAsync`          | 1          | synchronous `runOnlyPendingTimers` plus an awaited tick |
-| `vi.advanceTimersByTimeAsync`           | 1          | synchronous `advanceTimersByTime` plus an awaited tick  |
+The cost of getting this backwards, measured on the reverted work: 143 lines of
+shim infrastructure against roughly 7 lines of config removed, a `@types/bun`
+dependency, explicit `types` arrays in two tsconfigs, 51 spurious lint
+warnings, and a `--isolate` flag with nowhere to live but a script, without
+which the suite was 661 pass / 41 fail. `bun:test` isolates per process rather
+than per file and lacks `vi.mocked`, `vi.stubGlobal`, `vi.unstubAllGlobals`,
+`vi.waitFor` and the two async timer variants — every one of which Vitest has.
+And the dependency the swap was meant to remove stayed installed regardless,
+because `vite-plus` depends on it.
 
-The shape of the migration was verified on `wiki-links.test.ts`, the heaviest
-mock user in the suite at 32 `vi.*` calls. A purely mechanical conversion of
-its import line ran 41 tests green under `bun test`. Two properties that could
-have made this a rewrite do not apply here: no `vi.mock` call uses the
-factory-less auto-mock form, and `mock.module` updates the live binding of an
-already-imported module, so static imports see the mock without restructuring.
+The rule worth keeping: order the slices so the constraint disappears, rather
+than shimming around it.
 
 **Formatter configuration is `indentStyle: space`, `indentWidth: 2`,
 `lineWidth: 100`.** Measured against the current Oxfmt output:
@@ -151,31 +151,34 @@ because enabling new coverage is a separate change from removing a wrapper.
 
 Each slice is independently verifiable and leaves the repo green.
 
-### Slice 1 — Test runner
+### Slice 1 — Bundler, dev server, and test runner — DONE (`2a49897`)
 
-Point the 57 test files at `bun:test` instead of `vite-plus/test`. Add the
-compat helpers for the five missing APIs in a shared test utility. Drop the
-`npm:@voidzero-dev/vite-plus-test@latest` catalog alias, the `vitest` override,
-and the `@voidzero-dev/vite-plus-test>vite` override. Remove the `test` block
-from the root config and the `test` block from `apps/desktop/vite.config.ts` —
-the latter also unblocks Slice 2, since real Vite's `defineConfig` rejects a
-`test` key.
+Landed as one change, because the test runner follows the bundler rather than
+standing on its own.
 
-Verify: 702 tests passing under `bun test`, compared count-for-count against
-the current Vitest run.
+Both apps point at real Vite 8.3.0: the `vite: "catalog:"` override and the
+`npm:@voidzero-dev/vite-plus-core@latest` catalog alias are gone, so `vite`
+means Vite, and the store holds exactly one materialised copy. `vp` left the
+build path — `tsc && vite build`, `vite preview`, and `dev:vite` / `build:vite`
+for `tauri.conf.json`, which needs frontend-only scripts that do not recurse
+into `tauri dev`.
 
-### Slice 2 — Bundler and dev server
+The 57 test files import from `vitest`. The root `test` block moved to a new
+`vitest.config.ts`; `apps/desktop/vite.config.ts` keeps its own and takes
+`defineConfig` from `vitest/config`, since Vite's rejects a `test` key. The
+`include` is what keeps the seven WebDriver `.spec.js` files out of the run.
 
-Point both apps at real Vite 8. Drop the `vite: "catalog:"` override and the
-`npm:@voidzero-dev/vite-plus-core@latest` catalog alias, so `vite` means Vite
-everywhere. Align `apps/desktop` on the same Vite major as `apps/website`,
-which already runs 8.3.0. Rewrite `tauri.conf.json`'s `beforeDevCommand` and
-`beforeBuildCommand`, and the `build`/`preview` scripts in both apps.
+`@vitejs/plugin-react` went to 6 in a follow-up (`5f38da2`). Version 4 peered
+on `vite ^4 || ^5 || ^6 || ^7`, so Vite 8 left it unsatisfied; it also passed a
+`jsx` input option that rolldown-based Vite rejects, and set esbuild options
+alongside oxc ones so its `jsxImportSource` — how `why-did-you-render` hooks
+the JSX factory — landed in the ignored half. Both warnings are gone.
 
-Verify: both app builds, `tauri dev` reaching `localhost:1420` with HMR, and
-`scripts/distribute.sh` up to its signing gate.
+Verified: 702 tests across 57 files with no flag, `vp check` at 0 errors and 1
+warning, both app builds, and `localhost:1420` serving 200 with the HMR client
+from the 8.3.0 path.
 
-### Slice 3 — Linter and formatter
+### Slice 2 — Linter and formatter
 
 Add Biome with the configuration above. Port the `ignorePatterns` from the root
 config. Fix the correctness findings by hand, auto-fix the style findings,
@@ -184,7 +187,7 @@ disable the CSS and a11y groups. Identify the two `parse` diagnostics.
 Verify: `biome check` green, and the 702 tests still passing after the
 auto-fixes.
 
-### Slice 4 — Hooks, tasks, and removal
+### Slice 3 — Hooks, tasks, and removal
 
 Replace `.vite-hooks` and `core.hooksPath` with lefthook running
 `biome check --write` on staged files. Replace `vp run <pkg>#<script>` with
@@ -198,15 +201,16 @@ builds with no `vp` on `PATH`.
 
 ## Risks
 
-**`apps/desktop` moves off a Vite fork onto upstream Vite.** Its current build
-emits rolldown-specific warnings and an `Invalid key: Expected never but
-received "jsx"` input-option warning. Those may resolve or may change shape.
-`apps/website` already runs real Vite 8.3.0 with the same
-`@vitejs/plugin-react`, which is a good signal but not a guarantee — the
-desktop app also loads `@tailwindcss/vite`.
+**~~`apps/desktop` moves off a Vite fork onto upstream Vite.~~ Retired — it
+landed clean.** The bundle came out marginally smaller (4,951 kB to 4,911 kB),
+with the same 158 chunks under the same names and no chunk appearing or
+vanishing. The `Invalid key: Expected never but received "jsx"` warning turned
+out not to be a fork artefact at all: it survived the move and was fixed by
+`@vitejs/plugin-react` 6, alongside a second warning that had been silently
+discarding the plugin's `jsxImportSource`.
 
 **Two files fail to parse under Biome.** The JSON reporter did not surface
-their paths. They must be identified in Slice 3 before Biome is trusted as the
+their paths. They must be identified in slice 2 before Biome is trusted as the
 only linter.
 
 **Type-aware lint coverage narrows.** The current config runs `typeAware: true`,
