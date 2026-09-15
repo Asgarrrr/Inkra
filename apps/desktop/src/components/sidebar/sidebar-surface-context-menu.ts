@@ -6,7 +6,7 @@ import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { detectPlatform, openFolderLabelForPlatform, type Platform } from "./context-menu-utils";
 import { SIDEBAR_SORT_MODES, type SidebarSortMode } from "./sidebar-sort";
 
-export type SidebarSurfaceToggleId = "toggle-search" | "toggle-recents";
+export type SidebarSurfaceToggleId = "toggle-search" | "toggle-recents" | "folders-first";
 export type SidebarSurfaceActionId =
   | "new-file"
   | "new-folder"
@@ -15,11 +15,13 @@ export type SidebarSurfaceActionId =
 
 interface SidebarSurfaceWorkspaceActions {
   sortMode: SidebarSortMode;
+  foldersFirst: boolean;
   onNewFile: () => void;
   onNewFolder: () => void;
   onOpenInTerminal: () => void;
   onOpenInFileManager: () => void;
   onSortModeChange: (mode: SidebarSortMode) => void;
+  onFoldersFirstChange: (foldersFirst: boolean) => void;
 }
 
 export interface SidebarSurfaceMenuState {
@@ -48,8 +50,9 @@ export type SidebarSurfaceMenuEntry =
   | { kind: "separator" };
 
 /**
- * The "Sort files by" submenu: one check item per sort mode, exactly one
- * checked, with a separator between the name / modified / created groups.
+ * The "Sort by" submenu: one check item per sort mode, exactly one checked,
+ * with a separator between the name / modified / created groups, then the
+ * independent "Folders first" toggle at the bottom.
  */
 function buildSortSubmenu(actions: SidebarSurfaceWorkspaceActions): SidebarSurfaceMenuEntry {
   const items: SidebarSurfaceMenuEntry[] = [];
@@ -65,7 +68,17 @@ function buildSortSubmenu(actions: SidebarSurfaceWorkspaceActions): SidebarSurfa
       action: () => actions.onSortModeChange(mode.id),
     });
   }
-  return { kind: "submenu", id: "sort", text: "Sort files by", items };
+  items.push(
+    { kind: "separator" },
+    {
+      kind: "check",
+      id: "folders-first",
+      text: "Folders first",
+      checked: actions.foldersFirst,
+      action: () => actions.onFoldersFirstChange(!actions.foldersFirst),
+    },
+  );
+  return { kind: "submenu", id: "sort", text: "Sort by", items };
 }
 
 /**

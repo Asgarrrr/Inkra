@@ -102,7 +102,7 @@
     {
       "key": "appearance.sidebar-sort",
       "label": "Sidebar Sort",
-      "description": "Order of files in the sidebar tree; folders always come first, by name",
+      "description": "Order of entries in the sidebar tree",
       "category": "Appearance",
       "type": "enum",
       "options": [
@@ -114,6 +114,14 @@
         "created-asc"
       ],
       "default": "name-asc"
+    },
+    {
+      "key": "appearance.sidebar-folders-first",
+      "label": "Sidebar Folders First",
+      "description": "Keep folders above files in the sidebar tree; off sorts folders and files together",
+      "category": "Appearance",
+      "type": "boolean",
+      "default": true
     },
     {
       "key": "appearance.sidebar-show-search",
