@@ -16,7 +16,7 @@ import "./section-rail.css";
 const TICK_WIDTH = 8;
 const TICK_HEIGHT = 1;
 const TICK_GAP = 6;
-const RAIL_EDGE_INSET = 4;
+const RAIL_EDGE_INSET = 0;
 const RAIL_INNER_WIDTH = TICK_WIDTH + 2;
 const RAIL_ZONE_WIDTH = RAIL_EDGE_INSET + RAIL_INNER_WIDTH;
 const POPOVER_WIDTH = 260;
