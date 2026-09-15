@@ -81,8 +81,8 @@ export function FileTree({
   useAutoRefresh(rootPath, entries.length === 0);
 
   const flatItems = useMemo(
-    () => flattenTree(entries, 0, directoryCache, expandedDirs),
-    [directoryCache, entries, expandedDirs],
+    () => flattenTree(entries, 0, directoryCache, expandedDirs, fileLabelMode),
+    [directoryCache, entries, expandedDirs, fileLabelMode],
   );
 
   const entryByPath = useMemo(() => {

@@ -6,6 +6,7 @@
 
 ## Done
 
+- Sidebar sort by visible label — the `Everything` tree re-sorts each folder in `flatten-tree.ts` by the same `fileTreeLabel` function the rows render with (title or filename stem per `appearance.sidebar-file-label`), folders first, via a natural-order `Intl.Collator`. The Rust listing keeps its filename sort as the baseline for other consumers.
 - Website mobile hero overlap — drop the desktop-only sticky positioning from `.hero` in the stacked (<900px) layout and use `min-height: 100svh` instead of a fixed `100vh`, so the demo-video strip no longer scrolls over the feature list.
 - Website PostHog analytics: [`SPECs/website-posthog-analytics-spec.md`](SPECs/website-posthog-analytics-spec.md) — replace the marketing site's self-hosted Umami script and `data-umami-*` attributes with `posthog-js` behind the official `PostHogProvider`, capturing `$pageview` plus `updates_opened`, `github_opened`, and `download_started` (carrying `app_version`). Configuration is build-time only and shares the desktop app's project: `VITE_POSTHOG_KEY` first, then `WRITER_POSTHOG_KEY` from the repo-root `.env` (bridged by name in `vite.config.ts`, never by widening `envDir`, so the signing secrets beside it cannot reach the bundle); host likewise. With no key nothing is initialized and nothing is sent, mirroring `telemetry.rs`. Full disclosure in [`docs/website-analytics.md`](docs/website-analytics.md).
 - Opt-in telemetry: [`SPECs/opt-in-telemetry-spec.md`](SPECs/opt-in-telemetry-spec.md) — off-by-default PostHog reporting behind a one-time first-run consent dialog, with a self-declared email the prompt asks for by name, a `Privacy` settings section, and four fixed events (`app_opened`, `workspace_opened`, `file_created`, `folder_created`) carrying no paths or content. The client is Rust-side so `commands/fs.rs` stays the single write path and `posthog-js` autocapture can never reach the editor DOM; the project key is build-time only, so clone-and-build binaries are inert. Review follow-ups not yet done: promote `track(&str)` to an `Event` enum with a unit test that parses the event table out of `docs/telemetry.md`; factor the enable/once-per-session state machine off the `OnceLock` static so `apply_settings` and the consent-time `app_opened` path get unit coverage; give the e2e harness a keyed build so `telemetry-consent.spec.js` actually runs in CI.
@@ -95,7 +96,8 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 
 ## Done
 
-See `CHANGELOG.md` and `git log` for shipped work. Notable items:
+- Sidebar sort by visible label — the `Everything` tree re-sorts each folder in `flatten-tree.ts` by the same `fileTreeLabel` function the rows render with (title or filename stem per `appearance.sidebar-file-label`), folders first, via a natural-order `Intl.Collator`. The Rust listing keeps its filename sort as the baseline for other consumers.
+  See `CHANGELOG.md` and `git log` for shipped work. Notable items:
 
 - [x] External file watcher: external file changes (Finder, git, vim, scripts) reach the sidebar and reload-from-disk reliably; dotdir workspace roots, `/var` aliases, and self-write echoes all fixed ([`SPECs/external-file-watcher-spec.md`](SPECs/external-file-watcher-spec.md))
 - [x] Cmd+F polish: safe scroll-into-view, Cmd+G / Cmd+Shift+G next/previous, scrollbar match overview ([`SPECs/cmd-f-spec.md`](SPECs/cmd-f-spec.md))
