@@ -52,7 +52,7 @@
   },
   "type": "module",
   "scripts": {
-    "ready": "vp fmt && vp lint && vp run test -r && vp run build -r",
+    "ready": "vp check && vp test && vp run -r build",
     "dev": "vp run desktop#dev",
     "prepare": "vp config",
     "distribute": "./scripts/distribute.sh"
