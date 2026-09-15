@@ -288,7 +288,9 @@ pub fn read_directory_impl(
         }
     }
 
-    // Sort dirs-first, then alphabetical within each group
+    // Sort dirs-first, then alphabetical by filename within each group. This is
+    // a stable baseline for every consumer; the sidebar tree re-sorts by its
+    // visible label (title or stem) in `flatten-tree.ts`.
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     dirs.extend(files);
