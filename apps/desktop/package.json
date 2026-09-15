@@ -49,7 +49,7 @@
     "@types/katex": "catalog:",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@vitejs/plugin-react": "^4.6.0",
+    "@vitejs/plugin-react": "catalog:",
     "@welldone-software/why-did-you-render": "catalog:",
     "typescript": "~5.8.3",
     "vite": "catalog:",
