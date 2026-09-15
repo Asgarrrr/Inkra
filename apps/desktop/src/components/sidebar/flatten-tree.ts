@@ -15,9 +15,10 @@ export function flattenTree(
   expandedDirs: Set<string>,
   fileLabelMode?: string,
   sortMode?: string,
+  foldersFirst = true,
   result: FlatTreeItem[] = [],
 ): FlatTreeItem[] {
-  for (const entry of sortTreeEntries(items, fileLabelMode, sortMode)) {
+  for (const entry of sortTreeEntries(items, fileLabelMode, sortMode, foldersFirst)) {
     result.push({ entry, depth });
     if (entry.is_dir && expandedDirs.has(entry.path)) {
       flattenTree(
@@ -27,6 +28,7 @@ export function flattenTree(
         expandedDirs,
         fileLabelMode,
         sortMode,
+        foldersFirst,
         result,
       );
     }

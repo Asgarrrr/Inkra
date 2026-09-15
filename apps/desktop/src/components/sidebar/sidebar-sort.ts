@@ -5,9 +5,10 @@ import { fileTreeLabel } from "./use-file-tree-label";
  * Registry of the sidebar's file sort modes. The ids are the values of the
  * `appearance.sidebar-sort` setting (the schema lists the same ids, and a test
  * keeps the two in step); `text` is the menu label; `group` clusters the menu
- * into name / modified / created sections. Folders are never sorted by these
- * modes: they stay first and alphabetical so only files move when the mode
- * changes.
+ * into name / modified / created sections. With folders first (the default)
+ * folders are never sorted by these modes: they stay above the files and
+ * alphabetical so only files move when the mode changes. With folders first
+ * off, every entry is ordered by the mode, like `ls`.
  */
 export const SIDEBAR_SORT_MODES = [
   { id: "name-asc", text: "Name (A to Z)", group: "name" },
@@ -39,12 +40,12 @@ function byLabel(a: KeyedEntry, b: KeyedEntry): number {
 }
 
 /**
- * Comparator for two files under `mode`. Time modes fall back to the name
+ * Comparator for two entries under `mode`. Time modes fall back to the name
  * order on equal timestamps (whole seconds), so the result is deterministic
  * and matches what the user sees in name mode. Unknown or missing modes sort
  * by name so a stale or mistyped setting value can never scramble the tree.
  */
-function compareFiles(mode: string | undefined, a: KeyedEntry, b: KeyedEntry): number {
+function compareByMode(mode: string | undefined, a: KeyedEntry, b: KeyedEntry): number {
   switch (mode) {
     case "name-desc":
       return byLabel(b, a);
@@ -62,24 +63,27 @@ function compareFiles(mode: string | undefined, a: KeyedEntry, b: KeyedEntry): n
 }
 
 /**
- * Order a directory's entries the way the tree displays them: folders first,
- * A–Z by name, then files by `sortMode`, where "name" means the visible label
- * (title or filename stem per `fileLabelMode`). The backend sorts by raw
- * filename, which drifts from the label once titles are shown, so the tree
- * re-sorts by the same label function it renders with. Returns a new array;
- * the cached array from the store is never mutated.
+ * Order a directory's entries the way the tree displays them. With
+ * `foldersFirst` (the default): folders first, A–Z by name, then files by
+ * `sortMode`. Without it: folders and files together by `sortMode`. "Name"
+ * means the visible label (title or filename stem per `fileLabelMode`). The
+ * backend sorts by raw filename, which drifts from the label once titles are
+ * shown, so the tree re-sorts by the same label function it renders with.
+ * Returns a new array; the cached array from the store is never mutated.
  */
 export function sortTreeEntries(
   items: DirEntry[],
   fileLabelMode?: string,
   sortMode?: string,
+  foldersFirst = true,
 ): DirEntry[] {
   return items
     .map((entry) => ({ entry, label: fileTreeLabel(entry, fileLabelMode) }))
     .sort((a, b) => {
+      if (!foldersFirst) return compareByMode(sortMode, a, b);
       const folderFirst = Number(b.entry.is_dir) - Number(a.entry.is_dir);
       if (folderFirst !== 0) return folderFirst;
-      return a.entry.is_dir ? byLabel(a, b) : compareFiles(sortMode, a, b);
+      return a.entry.is_dir ? byLabel(a, b) : compareByMode(sortMode, a, b);
     })
     .map(({ entry }) => entry);
 }

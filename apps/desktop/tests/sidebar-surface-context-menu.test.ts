@@ -43,11 +43,13 @@ function makeState(
     workspaceActions: hasWorkspace
       ? {
           sortMode: "modified-desc",
+          foldersFirst: true,
           onNewFile: () => calls.push("new-file"),
           onNewFolder: () => calls.push("new-folder"),
           onOpenInTerminal: () => calls.push("open-terminal"),
           onOpenInFileManager: () => calls.push("open-file-manager"),
           onSortModeChange: (mode) => calls.push(`sort:${mode}`),
+          onFoldersFirstChange: (value) => calls.push(`folders-first:${value}`),
         }
       : null,
     onToggleSearch: (visible) => calls.push(`search:${visible}`),
@@ -66,14 +68,14 @@ describe("buildSidebarSurfaceMenuItemsSpec", () => {
       "item:open-terminal:Open in Terminal",
       "item:open-file-manager:Open in Finder",
       "---",
-      "submenu:sort:Sort files by",
+      "submenu:sort:Sort by",
       "---",
       "check:toggle-search:Search:true",
       "check:toggle-recents:Recents:false",
     ]);
   });
 
-  test("the sort submenu checks the current mode and separates the groups", () => {
+  test("the sort submenu checks the current mode, separates the groups, and ends with folders first", () => {
     const state = makeState(true, true);
     const spec = buildSidebarSurfaceMenuItemsSpec(state, "macos");
     const sort = spec.find((entry) => entry.kind === "submenu");
@@ -88,6 +90,8 @@ describe("buildSidebarSurfaceMenuItemsSpec", () => {
       "---",
       "check:created-desc:Created time (new to old):false",
       "check:created-asc:Created time (old to new):false",
+      "---",
+      "check:folders-first:Folders first:true",
     ]);
 
     for (const entry of sort.items) if (entry.kind === "check") entry.action();
@@ -98,7 +102,22 @@ describe("buildSidebarSurfaceMenuItemsSpec", () => {
       "sort:modified-asc",
       "sort:created-desc",
       "sort:created-asc",
+      "folders-first:false",
     ]);
+  });
+
+  test("the folders first item reflects the setting and toggles it back on", () => {
+    const state = makeState(true, true);
+    if (state.workspaceActions) state.workspaceActions.foldersFirst = false;
+    const spec = buildSidebarSurfaceMenuItemsSpec(state, "macos");
+    const sort = spec.find((entry) => entry.kind === "submenu");
+    if (sort?.kind !== "submenu") throw new Error("expected a sort submenu");
+    const foldersFirst = sort.items.at(-1);
+    if (foldersFirst?.kind !== "check") throw new Error("expected a folders-first check");
+
+    expect(foldersFirst.checked).toBe(false);
+    foldersFirst.action();
+    expect(state.calls).toEqual(["folders-first:true"]);
   });
 
   test("omits workspace actions when no workspace is open", () => {

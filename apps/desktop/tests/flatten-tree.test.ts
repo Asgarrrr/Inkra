@@ -139,6 +139,51 @@ describe("sortTreeEntries", () => {
     expect(names(sortTreeEntries(entries, "title", "bogus"))).toEqual(["a.md", "b.md"]);
   });
 
+  test("with folders first off, name mode interleaves folders and files by label", () => {
+    const entries = [file("a.md", "Zebra"), dir("Middle"), file("b.md", "Apple"), dir("banana")];
+
+    expect(names(sortTreeEntries(entries, "title", "name-asc", false))).toEqual([
+      "b.md",
+      "banana",
+      "Middle",
+      "a.md",
+    ]);
+    expect(names(sortTreeEntries(entries, "title", "name-desc", false))).toEqual([
+      "a.md",
+      "Middle",
+      "banana",
+      "b.md",
+    ]);
+  });
+
+  test("with folders first off, time modes order folders by their own timestamps", () => {
+    const entries = [
+      file("old.md", null, { modified: 10, created: 10 }),
+      dir("recent", { modified: 30, created: 5 }),
+      file("new.md", null, { modified: 20, created: 20 }),
+    ];
+
+    expect(names(sortTreeEntries(entries, "title", "modified-desc", false))).toEqual([
+      "recent",
+      "new.md",
+      "old.md",
+    ]);
+    expect(names(sortTreeEntries(entries, "title", "created-asc", false))).toEqual([
+      "recent",
+      "old.md",
+      "new.md",
+    ]);
+  });
+
+  test("folders first defaults on and matches the schema default", () => {
+    const entries = [file("a.md", "Apple"), dir("zoo")];
+    const setting = SETTINGS_SCHEMA.find((def) => def.key === "appearance.sidebar-folders-first");
+
+    expect(setting?.default).toBe(true);
+    expect(names(sortTreeEntries(entries, "title", "name-asc"))).toEqual(["zoo", "a.md"]);
+    expect(names(sortTreeEntries(entries, "title", "name-asc", true))).toEqual(["zoo", "a.md"]);
+  });
+
   test("the sort registry matches the setting's schema options", () => {
     const setting = SETTINGS_SCHEMA.find((def) => def.key === "appearance.sidebar-sort");
 

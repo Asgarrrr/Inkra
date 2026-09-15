@@ -15,6 +15,7 @@ export function useSidebarSurface() {
   const showRecents = useBooleanSetting("appearance.sidebar-show-recents");
   const sortSetting = useSetting("appearance.sidebar-sort");
   const sortMode = isSidebarSortMode(sortSetting) ? sortSetting : DEFAULT_SIDEBAR_SORT_MODE;
+  const foldersFirst = useBooleanSetting("appearance.sidebar-folders-first");
   const root = useWorkspaceRoot();
   const refreshDirectory = useRefreshDirectory();
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export function useSidebarSurface() {
       workspaceActions: root
         ? {
             sortMode,
+            foldersFirst,
             onNewFile: () => createRootEntry("file"),
             onNewFolder: () => createRootEntry("folder"),
             onOpenInTerminal: () => {
@@ -62,6 +64,9 @@ export function useSidebarSurface() {
               ),
             onSortModeChange: (mode) => {
               void setSetting("appearance.sidebar-sort", mode);
+            },
+            onFoldersFirstChange: (value) => {
+              void setSetting("appearance.sidebar-folders-first", value);
             },
           }
         : null,
