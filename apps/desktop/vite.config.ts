@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -17,6 +17,12 @@ export default defineConfig(async () => ({
       "@": new URL("./src", import.meta.url).pathname,
       "@shared": new URL("./shared", import.meta.url).pathname,
     },
+  },
+  test: {
+    // Scoped to `tests/` so the WebDriver specs under `e2e/` stay out of the
+    // unit run — Vitest's default glob would sweep them up.
+    environment: "node",
+    include: ["tests/**/*.test.ts"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

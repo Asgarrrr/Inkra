@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 
 // The Tauri menu modules pull in `@tauri-apps/api/core` at import time, so we
 // stub them up front. The pure helper under test

@@ -4,9 +4,9 @@
   "version": "0.6.0",
   "identifier": "com.inkra",
   "build": {
-    "beforeDevCommand": "vp dev",
+    "beforeDevCommand": "bun run dev:vite",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "vp build",
+    "beforeBuildCommand": "bun run build:vite",
     "frontendDist": "../dist"
   },
   "app": {

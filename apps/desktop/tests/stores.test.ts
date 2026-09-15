@@ -1,10 +1,7 @@
-import { beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { mocked, waitFor } from "./helpers/vi-compat";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Mock the tauri API before importing stores
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -27,7 +24,7 @@ import { getEditorSessionSnapshot } from "../src/stores/editor-store";
 // single-file watcher whenever the active file changes in a compact window.
 import "../src/lib/standalone-watch";
 
-const mockedInvoke = mocked(invoke);
+const mockedInvoke = vi.mocked(invoke);
 
 function tabPaths() {
   return useEditorStore
@@ -908,7 +905,7 @@ describe("workspace-store restoreFromBundle", () => {
 
     expect(useWorkspaceStore.getState().chromeMode).toBe("workspace");
     expect(useWorkspaceStore.getState().root).toBe("/ws");
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(tabPaths()).toEqual(["/ws/a.md"]);
     });
   });

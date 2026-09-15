@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import * as actualPaths from "../src/lib/paths";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { mocked, stubGlobal } from "./helpers/vi-compat";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -18,11 +14,8 @@ vi.mock("@/lib/theme", () => ({
   applyCssVarBindings: vi.fn(),
 }));
 
-// `bun:test` hands the factory no `importOriginal`. The static import above is
-// the stand-in: it is evaluated before this module body, so the spread still
-// captures the real exports.
-vi.mock("@/lib/paths", () => ({
-  ...actualPaths,
+vi.mock("@/lib/paths", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/lib/paths")>()),
   resolveLinkTarget: vi.fn(),
 }));
 
@@ -50,10 +43,10 @@ import {
 } from "../src/lib/pending-target";
 import { createSettingsTab, useEditorStore } from "../src/stores/editor-store";
 
-const mockedInvoke = mocked(invoke);
-const mockedResolveLinkTarget = mocked(resolveLinkTarget);
+const mockedInvoke = vi.mocked(invoke);
+const mockedResolveLinkTarget = vi.mocked(resolveLinkTarget);
 
-stubGlobal("getComputedStyle", (node: { overflowY?: string }) => ({
+vi.stubGlobal("getComputedStyle", (node: { overflowY?: string }) => ({
   overflowY: node.overflowY ?? "visible",
 }));
 
@@ -456,7 +449,7 @@ describe("followLink", () => {
 
     await followLink("https://example.com", "/a.md");
 
-    expect(mocked(openUrl)).toHaveBeenCalledWith("https://example.com");
+    expect(vi.mocked(openUrl)).toHaveBeenCalledWith("https://example.com");
     expect(consumePendingTarget("/a.md")).toBeUndefined();
   });
 });

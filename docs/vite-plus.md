@@ -5,10 +5,10 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 ## Core Rules
 
 - Use `vp` for package management and frontend tooling.
-- The underlying package manager is Bun, selected by `packageManager` in the root `package.json`. Do not call `bun`, pnpm, npm, or Yarn directly.
+- The underlying package manager is Bun, selected by `packageManager` in the root `package.json`. Do not call `bun install`/`add`/`remove`, pnpm, npm, or Yarn directly; `bun run <script>` is fine.
 - Use built-in Vite+ commands such as `vp dev`, `vp build`, `vp check`, `vp lint`, and `vp fmt`.
 - When a built-in `vp` command name conflicts with a `package.json` script, use `vp run <script>`.
-- Import JavaScript tooling APIs from `vite-plus`, not `vite`. Tests import from `bun:test`.
+- Import JavaScript tooling APIs from `vite-plus`, not `vite`. Tests import from `vitest`.
 
 ## Common Commands
 
@@ -25,7 +25,7 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 - `vp check` - Run format, lint, and TypeScript type checks
 - `vp lint` - Run Oxlint
 - `vp fmt` - Run Oxfmt
-- `vp test` - Do not use. The suite runs on `bun test`; use `bun run test`.
+- `vp test` - Do not use. It runs the bundled Vitest fork against a config this repo no longer has; the suite runs on real Vitest via `bun run test`.
 
 ### Execute
 
@@ -68,7 +68,7 @@ Cataloguing a dependency is a manual, two-file edit. `vp add` writes a plain ver
 - Do not run package manager commands directly; use `vp` instead.
 - Do not try to run wrapped tools directly as `vp oxlint`; use `vp lint`.
 - Built-in Vite+ commands do not run same-named `package.json` scripts. Use `vp run <script>` for scripts.
-- Do not install Vitest, Oxlint, Oxfmt, or tsdown directly. Vite+ wraps them.
+- Do not install Oxlint, Oxfmt, or tsdown directly. Vite+ wraps them. Vitest is the exception: it is a direct dependency, and the suite runs on it rather than on the bundled fork.
 - Use `vp dlx` instead of package-manager-specific `npx` or `dlx` commands.
 - Import from `vite-plus`, not `vite`. The bundled Vitest is unused.
 - There is no need to install extra type-aware lint packages; `vp lint --type-aware` works out of the box.

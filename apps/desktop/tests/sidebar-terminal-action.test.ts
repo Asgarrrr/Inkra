@@ -1,5 +1,4 @@
-import { describe, expect, test, vi } from "bun:test";
-import { waitFor } from "./helpers/vi-compat";
+import { describe, expect, test, vi } from "vitest";
 import {
   createFolderTerminalAction,
   openSidebarDirectoryInTerminal,
@@ -26,7 +25,7 @@ describe("openSidebarDirectoryInTerminal", () => {
     );
 
     action();
-    await waitFor(() => expect(openDirectory).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(openDirectory).toHaveBeenCalledTimes(1));
 
     expect(openDirectory).toHaveBeenCalledWith("/workspace/selected-folder");
   });

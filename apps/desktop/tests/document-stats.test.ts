@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { getDocumentStats } from "../src/lib/document-stats";
 
 describe("getDocumentStats", () => {

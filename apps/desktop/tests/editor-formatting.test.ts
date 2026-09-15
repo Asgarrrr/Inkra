@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { EditorState, EditorSelection } from "@codemirror/state";
 import type { StateCommand } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";

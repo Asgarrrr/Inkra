@@ -1,15 +1,13 @@
-import { beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { mocked } from "./helpers/vi-compat";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({ ...actualTauriCore, invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@/lib/theme", () => ({ applyTheme: vi.fn(), applyCssVarBindings: vi.fn() }));
 
 import { invoke } from "@tauri-apps/api/core";
 import { applyCssVarBindings, applyTheme } from "../src/lib/theme";
 import { useSettingsStore } from "../src/stores/settings-store";
 
-const mockedInvoke = mocked(invoke);
+const mockedInvoke = vi.mocked(invoke);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

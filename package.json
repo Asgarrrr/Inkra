@@ -30,7 +30,6 @@
       "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
       "@tauri-apps/plugin-dialog": "^2.6.0",
       "@tauri-apps/plugin-store": "^2.4.2",
-      "@types/bun": "^1.4.2",
       "@types/katex": "^0.16.7",
       "@types/node": "^24",
       "@welldone-software/why-did-you-render": "^10.0.1",
@@ -44,8 +43,9 @@
       "react-resizable-panels": "^4.7.4",
       "tailwindcss": "^4.2.2",
       "typescript": "^5",
-      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
+      "vite": "^8.3.0",
       "vite-plus": "^0.1.22",
+      "vitest": "^5.0.1",
       "yaml": "^2.8.3",
       "zustand": "^5.0.12"
     }
@@ -54,13 +54,13 @@
   "scripts": {
     "ready": "vp fmt && vp lint && bun run test && vp run build -r",
     "dev": "vp run desktop#dev",
-    "test": "bun test --isolate",
+    "test": "vitest run",
     "prepare": "vp config",
     "distribute": "./scripts/distribute.sh"
   },
   "devDependencies": {
-    "@types/bun": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "overrides": {
     "basic-ftp": "5.3.1",
@@ -71,7 +71,6 @@
     "picomatch": "4.0.4",
     "postcss": "8.5.15",
     "serialize-javascript": "7.0.5",
-    "vite": "catalog:",
     "ws": "8.20.1"
   },
   "engines": {

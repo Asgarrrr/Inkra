@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "bun:test";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // The Tauri menu modules pull in `@tauri-apps/api/core` at import time, so we
 // stub them up front. The pure helpers under test (`buildFileMenuItemsSpec`,

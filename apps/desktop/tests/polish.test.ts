@@ -1,9 +1,6 @@
-import { beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { mocked } from "./helpers/vi-compat";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -58,7 +55,7 @@ describe("keyboard shortcuts - tab navigation", () => {
   });
 
   test("Cmd+W closes current tab", async () => {
-    const { invoke } = mocked(await import("@tauri-apps/api/core"));
+    const { invoke } = vi.mocked(await import("@tauri-apps/api/core"));
     invoke.mockResolvedValue({ path: "/a.md", content: "a", modified_at: 1 });
 
     useEditorStore.setState({

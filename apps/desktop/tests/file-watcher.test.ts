@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { isWorkspaceEventCurrent } from "../src/lib/workspace-events";
 import identityContract from "../shared/workspace-identity.contract.json";
 

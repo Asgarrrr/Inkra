@@ -1,8 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 

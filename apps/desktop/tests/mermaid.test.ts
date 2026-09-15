@@ -1,5 +1,4 @@
-import { describe, expect, test, vi, beforeEach } from "bun:test";
-import { mocked } from "./helpers/vi-compat";
+import { describe, expect, test, vi, beforeEach } from "vitest";
 
 // Mock beautiful-mermaid before importing the renderer
 vi.mock("beautiful-mermaid", () => {
@@ -40,7 +39,7 @@ describe("renderMermaid", () => {
 
   test("returns error result when the renderer throws", async () => {
     const { renderMermaidSVG } = await import("beautiful-mermaid");
-    mocked(renderMermaidSVG).mockImplementationOnce(() => {
+    vi.mocked(renderMermaidSVG).mockImplementationOnce(() => {
       throw new Error("Parse error in mermaid");
     });
 
@@ -52,7 +51,7 @@ describe("renderMermaid", () => {
 
   test("handles non-Error thrown values", async () => {
     const { renderMermaidSVG } = await import("beautiful-mermaid");
-    mocked(renderMermaidSVG).mockImplementationOnce(() => {
+    vi.mocked(renderMermaidSVG).mockImplementationOnce(() => {
       throw "string error";
     });
 
@@ -63,7 +62,7 @@ describe("renderMermaid", () => {
 
   test("strips <script> blocks from the rendered SVG", async () => {
     const { renderMermaidSVG } = await import("beautiful-mermaid");
-    mocked(renderMermaidSVG).mockReturnValueOnce(
+    vi.mocked(renderMermaidSVG).mockReturnValueOnce(
       '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect/></svg>',
     );
 
@@ -76,7 +75,7 @@ describe("renderMermaid", () => {
 
   test("strips self-closing <script/> tags from the rendered SVG", async () => {
     const { renderMermaidSVG } = await import("beautiful-mermaid");
-    mocked(renderMermaidSVG).mockReturnValueOnce(
+    vi.mocked(renderMermaidSVG).mockReturnValueOnce(
       '<svg xmlns="http://www.w3.org/2000/svg"><script src="evil.js"/><rect/></svg>',
     );
 
@@ -88,7 +87,7 @@ describe("renderMermaid", () => {
 
   test("strips on*= event handler attributes from the rendered SVG", async () => {
     const { renderMermaidSVG } = await import("beautiful-mermaid");
-    mocked(renderMermaidSVG).mockReturnValueOnce(
+    vi.mocked(renderMermaidSVG).mockReturnValueOnce(
       '<svg xmlns="http://www.w3.org/2000/svg"><rect onclick="alert(1)" onmouseover=\'evil()\' onload=stealCookies() /></svg>',
     );
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { __testCodeFenceExtension } from "../src/lib/prosemark-core/codeFenceExtension";
 
 describe("codeFenceTheme", () => {

@@ -1,9 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { advanceTimersByTimeAsync, mocked, runOnlyPendingTimersAsync } from "./helpers/vi-compat";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
@@ -15,7 +12,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEditorStore } from "../src/stores/editor-store";
 import { useSettingsStore } from "../src/stores/settings-store";
 
-const mockedInvoke = mocked(invoke);
+const mockedInvoke = vi.mocked(invoke);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -56,7 +53,7 @@ describe("autosave", () => {
   });
 
   afterEach(async () => {
-    await runOnlyPendingTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
     vi.useRealTimers();
   });
 
@@ -98,7 +95,7 @@ describe("autosave", () => {
     expect(midSave?.diskContent).toBe("first draft");
     expect(midSave?.isDirty).toBe(true);
 
-    await advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     expect(writePayloads).toEqual(["first draft", "second draft"]);
 
     secondWrite.resolve({ path: "/test.md", modified_at: 3 });

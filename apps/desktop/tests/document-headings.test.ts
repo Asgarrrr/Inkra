@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { buildSlugIndex, parseDocumentHeadings } from "../src/hooks/use-document-headings";
 
 describe("parseDocumentHeadings", () => {

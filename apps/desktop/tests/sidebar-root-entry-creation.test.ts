@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 import { createSidebarEntryAndRename } from "../src/components/sidebar/create-sidebar-entry-and-rename";
 
 describe("createSidebarEntryAndRename", () => {

@@ -1,15 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import { mocked } from "./helpers/vi-compat";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
 }));
 
 import { invoke } from "@tauri-apps/api/core";
 
-const mockedInvoke = mocked(invoke);
+const mockedInvoke = vi.mocked(invoke);
 
 describe("fuzzySearch IPC", () => {
   beforeEach(() => {

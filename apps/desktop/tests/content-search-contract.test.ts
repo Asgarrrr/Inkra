@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import contract from "../shared/content-search-event.contract.json";
 import type { ContentSearchEvent } from "../src/lib/tauri";
 import type {

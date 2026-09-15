@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { DEFAULT_POSTHOG_HOST, resolveAnalyticsConfig } from "../src/analytics-config";
 
 describe("resolveAnalyticsConfig", () => {

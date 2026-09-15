@@ -127,7 +127,7 @@ echo "Building Inkra $TAG..."
 
 # Build signed and notarized DMG + updater artifacts (.app.tar.gz + .sig).
 cd "$ROOT_DIR/apps/desktop"
-vp exec tauri build --bundles app,dmg
+bun run tauri build --bundles app,dmg
 
 BUNDLE_DIR="$ROOT_DIR/apps/desktop/src-tauri/target/release/bundle"
 DMG_DIR="$BUNDLE_DIR/dmg"

@@ -1,20 +1,16 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { actualTauriCore } from "./helpers/actual-tauri-core";
-import * as fakeReact from "./helpers/fake-react";
-import { mocked, stubGlobal, unstubAllGlobals } from "./helpers/vi-compat";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  ...actualTauriCore,
   invoke: vi.fn(),
   Channel: class {
     onmessage: ((event: unknown) => void) | null = null;
   },
 }));
 
-// The factory must be synchronous: an async one leaves `react` unresolved while
-// the module under test statically imports it, and the run deadlocks.
-vi.mock("react", () => fakeReact);
+vi.mock("react", () => import("./helpers/fake-react"));
 
+import { invoke } from "@tauri-apps/api/core";
+import { useContentSearch } from "../src/components/command-palette/use-content-search";
 import {
   CONTENT_SEARCH_DEBOUNCE_MS,
   CONTENT_SEARCH_INDICATOR_DELAY_MS,
@@ -23,13 +19,7 @@ import type { ContentSearchEvent } from "../src/lib/tauri";
 import type { ContentSearchResult, ContentSearchStats } from "../src/types/fs";
 import { renderHook } from "./helpers/fake-react";
 
-// `react` is CommonJS, so its named bindings are fixed when the importer is
-// linked — before any module body, including this one, runs. Only a module
-// loaded after `vi.mock` sees the fake, hence the dynamic import.
-const { invoke } = await import("@tauri-apps/api/core");
-const { useContentSearch } = await import("../src/components/command-palette/use-content-search");
-
-const mockedInvoke = mocked(invoke);
+const mockedInvoke = vi.mocked(invoke);
 
 type Deliver = (event: ContentSearchEvent) => void;
 
@@ -69,14 +59,14 @@ async function flushMicrotasks() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  stubGlobal("window", globalThis);
+  vi.stubGlobal("window", globalThis);
   vi.useFakeTimers();
   mockedInvoke.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  unstubAllGlobals();
+  vi.unstubAllGlobals();
 });
 
 describe("useContentSearch", () => {
@@ -164,20 +154,11 @@ describe("useContentSearch", () => {
   });
 
   test("a rejection landing after the query moved on leaves the session alone", async () => {
-    // Held open rather than pre-rejected: `advanceTimersByTime` drains
-    // microtasks, so an already-rejected invoke would settle before the
-    // rerender and stop describing the ordering this test is about.
-    let rejectScan!: (reason: Error) => void;
-    mockedInvoke.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        rejectScan = reject;
-      }),
-    );
+    mockedInvoke.mockRejectedValueOnce(new Error("no workspace"));
     const hook = renderHook(useContentSearch, "alpha");
 
     vi.advanceTimersByTime(150);
     hook.rerender("alphab");
-    rejectScan(new Error("no workspace"));
     await flushMicrotasks();
 
     expect(hook.result.session.isComplete).toBe(false);

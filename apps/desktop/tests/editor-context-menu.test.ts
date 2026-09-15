@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/menu/menu", () => ({ Menu: { new: vi.fn() } }));
 vi.mock("@tauri-apps/api/menu/predefinedMenuItem", () => ({
