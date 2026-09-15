@@ -5,7 +5,7 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 ## Core Rules
 
 - Use `vp` for package management and frontend tooling.
-- Do not use pnpm, npm, or Yarn directly.
+- The underlying package manager is Bun, selected by `packageManager` in the root `package.json`. Do not call `bun`, pnpm, npm, or Yarn directly.
 - Use built-in Vite+ commands such as `vp dev`, `vp build`, `vp check`, `vp lint`, `vp fmt`, and `vp test`.
 - When a built-in `vp` command name conflicts with a `package.json` script, use `vp run <script>`.
 - Import JavaScript tooling APIs from `vite-plus` or `vite-plus/test`, not `vite` or `vitest`.
@@ -52,6 +52,10 @@ This project uses Vite+, a unified toolchain built on top of Vite, Rolldown, Vit
 - `vp info <pkg>` - View package information from the registry
 - `vp link` / `vp unlink` - Manage local package links
 - `vp pm <args...>` - Forward a command to the underlying package manager when needed
+
+Shared dependency versions live in the `workspaces.catalog` block of the root `package.json`. Workspace manifests reference them with `"catalog:"`.
+
+Cataloguing a dependency is a manual, two-file edit. `vp add` writes a plain version range, and Bun's `--catalog` flag is accepted but silently does nothing as of 1.4. To catalogue a package: add the range to `workspaces.catalog`, set the workspace manifest to `"catalog:"`, then run `vp install`.
 
 ### Maintain
 

@@ -347,9 +347,7 @@ describe("shouldStartDragGate", () => {
     const dispatch = shouldStartDragGate(makeState(), {
       isPrimary: true,
       button: 0,
-      target: {
-        /* not an Element */
-      } as EventTarget,
+      target: {/* not an Element */} as EventTarget,
     });
     expect(dispatch).not.toBeNull();
   });

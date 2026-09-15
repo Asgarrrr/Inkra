@@ -27,7 +27,7 @@ vp install
 From `apps/desktop/e2e/`:
 
 ```sh
-pnpm run test:e2e
+vp run test:e2e
 ```
 
 This builds the app with `--features e2e` (which embeds the WebDriver server)
@@ -60,7 +60,7 @@ bundle identifier (see below).
 
 ## How it works
 
-1. `pnpm run build:app` produces `Inkra.app` with the `e2e` Cargo feature,
+1. `vp run build:app` produces `Inkra.app` with the `e2e` Cargo feature,
    which includes `tauri-plugin-webdriver` (an embedded HTTP WebDriver server).
 2. `wdio.conf.js` (`onPrepare`) spawns the `tauri-webdriver` intermediary CLI
    on port 4444.
@@ -91,7 +91,7 @@ bundle identifier (see below).
 - **`ENOENT: tauri-webdriver`** — run `cargo install tauri-webdriver --locked`.
 - **Port 4444/4445 in use** — a previous run did not clean up.
   `pkill -f tauri-webdriver` and retry.
-- **App binary not found** — run `pnpm run build:app` first (or use
-  `pnpm run test:e2e` which chains them).
+- **App binary not found** — run `vp run build:app` first (or use
+  `vp run test:e2e` which chains them).
 - **Test hangs at `waitForDisplayed`** — the WKWebView likely did not load.
   Sanity-check that `vp run desktop#dev` still launches the app normally.
