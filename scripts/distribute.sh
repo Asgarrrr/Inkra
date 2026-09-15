@@ -62,6 +62,23 @@ set -a
 source "$ENV_FILE"
 set +a
 
+# The updater key and its passphrase live in the macOS keychain so `.env` holds
+# no secret. An explicit value in `.env` still wins, which keeps one-off
+# overrides and any future CI working. tauri-cli accepts the key itself here,
+# not only a path to it, so the private key never has to touch the build's
+# environment from disk.
+KEYCHAIN_ACCOUNT="inkra"
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+  TAURI_SIGNING_PRIVATE_KEY=$(security find-generic-password \
+    -a "$KEYCHAIN_ACCOUNT" -s inkra-updater-key -w 2>/dev/null || true)
+  export TAURI_SIGNING_PRIVATE_KEY
+fi
+if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$(security find-generic-password \
+    -a "$KEYCHAIN_ACCOUNT" -s inkra-updater-key-password -w 2>/dev/null || true)
+  export TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+fi
+
 # The updater key is required either way — it is what existing installs check
 # an update against, and it has nothing to do with Apple. The Apple credentials
 # are what make a release signed and notarized, so they are required only when
@@ -73,7 +90,13 @@ fi
 
 for var in $REQUIRED_VARS; do
   if [ -z "${!var:-}" ]; then
-    echo "Error: $var is not set in .env"
+    if [ "$var" = "TAURI_SIGNING_PRIVATE_KEY" ]; then
+      echo "Error: no updater key in the keychain, and none set in .env"
+      echo "  expected keychain item: service 'inkra-updater-key', account '$KEYCHAIN_ACCOUNT'"
+      echo "  See docs/releasing.md for how the key is stored."
+    else
+      echo "Error: $var is not set in .env"
+    fi
     exit 1
   fi
 done

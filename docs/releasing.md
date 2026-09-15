@@ -19,6 +19,21 @@ The one credential you cannot produce locally is `APPLE_SIGNING_IDENTITY`. It mu
 
 To check which kind of Apple account you have, open Xcode → Settings → Accounts. A free account shows the team as **Personal Team**, and cannot issue a Developer ID. Until one is available, release with `--unsigned` — see [Unsigned releases](#unsigned-releases).
 
+### The updater key
+
+The updater key is not an Apple credential and is not stored in `.env`. It lives in the macOS keychain, and `distribute.sh` reads it from there:
+
+| Service                      | Account | Holds                    |
+| ---------------------------- | ------- | ------------------------ |
+| `inkra-updater-key`          | `inkra` | the minisign private key |
+| `inkra-updater-key-password` | `inkra` | its passphrase           |
+
+Setting `TAURI_SIGNING_PRIVATE_KEY` or `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in `.env` overrides the keychain, which is how a one-off build or a future CI run would supply them. A copy of the key also sits at `~/.tauri/inkra.key`, mode `600`.
+
+This key is the root of trust for auto-update: the app verifies every update against the public half pinned in `tauri.conf.json`. Two consequences follow. **Lose the key and published installs can never be updated again** — there is no recovery, only a new download. **Leak it and anyone can author an update those installs will accept**, which is why it carries a passphrase rather than being usable as-is.
+
+Rotating the key means replacing `plugins.updater.pubkey` in `tauri.conf.json`, and installs running an older build keep checking against the old public key — they will reject every subsequent update. Rotation is therefore free only while nothing is published, and a breaking change afterwards.
+
 ## Step 1 — Bump the version
 
 The authoritative version lives in `apps/desktop/src-tauri/tauri.conf.json`. `scripts/distribute.sh` reads it from there to derive the tag (`v<version>`) and DMG filename. Three other files must be kept in sync so the crate, npm package, and Tauri config all agree:

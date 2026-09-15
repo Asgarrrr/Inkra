@@ -65,7 +65,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM5QkIzMUVGOUMyMzEwOTAKUldTUUVDT2M3ekc3T2VPaHVtUHNxVWIzZUIyNHRNVENId0d4TFB4VEV6c243Nktyd0tPdGhtM2kK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFERDExREI2OEU4NEJDOTAKUldTUXZJU090aDNSSFQ5L3J2SzZqWjV5bEVSSGpZSmY3RWdseTNJdXRwcW1KTmEwVDU4SndJckUK",
       "endpoints": ["https://github.com/Asgarrrr/Inkra/releases/latest/download/latest.json"]
     }
   }
