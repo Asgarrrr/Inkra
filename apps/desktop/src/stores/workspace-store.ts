@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { DirEntry } from "@/types/fs";
 import type { RestoreWorkspaceResponse } from "@/lib/tauri";
 import * as tauri from "@/lib/tauri";
+import { getParentDir } from "@/lib/paths";
 import { getPreference, setPreference } from "@/lib/preferences";
 import { saveSession, loadSession } from "@/lib/session";
 import { getEditorSessionSnapshot, useEditorStore } from "@/stores/editor-store";
@@ -290,7 +291,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   updateEntryModifiedAt: (path: string, modifiedAt: number) => {
     set((state) => {
-      const parent = path.substring(0, path.lastIndexOf("/"));
+      const parent = getParentDir(path);
       const entries = state.directoryCache.get(parent);
       if (!entries) return state;
       const index = entries.findIndex((entry) => entry.path === path);

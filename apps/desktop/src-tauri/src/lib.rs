@@ -64,8 +64,12 @@ fn reveal_window(window: &WebviewWindow) {
 fn attach_window_handlers(app: &tauri::AppHandle, window: &WebviewWindow) {
     let label = window.label().to_string();
     let handle = app.clone();
+    #[cfg(target_os = "macos")]
     let this_window = window.clone();
     window.on_window_event(move |event| match event {
+        // macOS only: elsewhere there is no Dock to bring a hidden window
+        // back, so a close must stay a close.
+        #[cfg(target_os = "macos")]
         WindowEvent::CloseRequested { api, .. } if label == MAIN_WINDOW_LABEL => {
             api.prevent_close();
             let _ = this_window.hide();

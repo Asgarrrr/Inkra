@@ -98,8 +98,7 @@ Previously-triaged work organized by phase. Pull into `Up Next` as capacity open
 
 ## Done
 
-- Sidebar sort by visible label — the `Everything` tree re-sorts each folder in `flatten-tree.ts` by the same `fileTreeLabel` function the rows render with (title or filename stem per `appearance.sidebar-file-label`), folders first, via a natural-order `Intl.Collator`. The Rust listing keeps its filename sort as the baseline for other consumers.
-  See `CHANGELOG.md` and `git log` for shipped work. Notable items:
+See `CHANGELOG.md` and `git log` for shipped work. Notable items:
 
 - [x] External file watcher: external file changes (Finder, git, vim, scripts) reach the sidebar and reload-from-disk reliably; dotdir workspace roots, `/var` aliases, and self-write echoes all fixed ([`SPECs/external-file-watcher-spec.md`](SPECs/external-file-watcher-spec.md))
 - [x] Cmd+F polish: safe scroll-into-view, Cmd+G / Cmd+Shift+G next/previous, scrollbar match overview ([`SPECs/cmd-f-spec.md`](SPECs/cmd-f-spec.md))
