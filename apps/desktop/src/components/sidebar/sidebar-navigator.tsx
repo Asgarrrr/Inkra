@@ -26,7 +26,7 @@ import { getFileStem, getParentDir, getRelativePath } from "@/lib/paths";
 import { duplicateFile } from "./duplicate-file";
 import { useMoveEntry } from "./use-move-entry";
 import { FileTree } from "./file-tree";
-import { FileTreeNode } from "./file-tree-node";
+import { FileRow } from "./file-row";
 import { showFileContextMenu } from "./file-context-menu";
 import { ShowMoreButton, SidebarSection } from "./sidebar-section";
 import type { DirEntry } from "@/types/fs";
@@ -53,8 +53,6 @@ export function SidebarNavigator() {
   const [pinnedVisibleCount, setPinnedVisibleCount] = useState(SIDEBAR_SECTION_PAGE_SIZE);
   const recentFiles = useRecentSidebarFiles(recentVisibleCount);
   const pinnedEntries = usePinnedSidebarFiles(pinnedVisibleCount);
-
-  const noopToggleDirectory = useCallback(async () => {}, []);
 
   const handleRenameFile = useCallback(
     (entry: DirEntry) => {
@@ -179,14 +177,9 @@ export function SidebarNavigator() {
         <SidebarSection title="Pinned">
           <div role="tree" aria-label="Pinned files" className="flex flex-col gap-px">
             {pinnedEntries.files.map((entry) => (
-              <FileTreeNode
+              <FileRow
                 key={entry.path}
                 entry={entry}
-                depth={0}
-                isExpanded={false}
-                isRenaming={false}
-                isSelected={false}
-                onToggleDir={noopToggleDirectory}
                 onOpenFile={openFile}
                 onContextMenu={handleFileContextMenu}
                 fileLabelMode={fileLabelMode}
@@ -205,14 +198,9 @@ export function SidebarNavigator() {
         <SidebarSection title="Recents">
           <div role="tree" aria-label="Recents" className="flex flex-col gap-px">
             {recentFiles.files.map((entry) => (
-              <FileTreeNode
+              <FileRow
                 key={entry.path}
                 entry={entry}
-                depth={0}
-                isExpanded={false}
-                isRenaming={false}
-                isSelected={false}
-                onToggleDir={noopToggleDirectory}
                 onOpenFile={openFile}
                 onContextMenu={handleFileContextMenu}
                 fileLabelMode={fileLabelMode}

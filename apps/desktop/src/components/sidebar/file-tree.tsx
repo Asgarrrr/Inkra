@@ -294,8 +294,6 @@ export function FileTree({ rootPath }: FileTreeProps) {
           isRenaming={renamingPath === item.entry.path}
           isSelected={selectedPaths.has(item.entry.path)}
           isDragging={draggingPaths?.has(item.entry.path) ?? false}
-          onToggleDir={toggleDirectory}
-          onOpenFile={openFile}
           onClick={onRowClick}
           onContextMenu={handleContextMenu}
           onPointerDown={onRowPointerDown}
