@@ -14,6 +14,28 @@
   pointer-events: none;
 }
 
+/* Fisheye falloff around the reading position. Two asymmetric slopes, each
+   with a floor: read headings stay wide and legible, unread ones shrink and
+   fade faster. `min()` of the two picks the branch on the right side of the
+   position without a conditional — the other one always overshoots past 1.
+   No transition: --rail-pos already moves with the scroll, and easing it
+   would only add lag. */
+.section-rail-tick {
+  --signed: calc(var(--tick-index) - var(--rail-pos, 0));
+  --tick-len: min(
+    max(0.62, calc(1 + var(--signed) * 0.09)),
+    max(0.34, calc(1 - var(--signed) * 0.16))
+  );
+  --tick-dim: min(
+    max(0.55, calc(1 + var(--signed) * 0.1)),
+    max(0.22, calc(1 - var(--signed) * 0.2))
+  );
+  transform-origin: right center;
+  transform: scaleX(var(--tick-len));
+  opacity: var(--tick-dim);
+  will-change: transform, opacity;
+}
+
 .section-rail-popover {
   transform-origin: right center;
   transform: translateY(-50%) translateX(-4px) scale(1);
