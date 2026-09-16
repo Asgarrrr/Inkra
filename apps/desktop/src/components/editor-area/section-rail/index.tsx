@@ -26,12 +26,13 @@ const POPOVER_WIDTH = 260;
 const POPOVER_EDGE_INSET = RAIL_EDGE_INSET;
 const POPOVER_TRANSITION_MS = 180;
 
-// Width is the unscaled maximum; scaleX and opacity come from the falloff.
+// Width is the unscaled maximum; scaleX, opacity and pointer-events come from
+// section-rail.css, which needs to turn the last one off while the rail is
+// faded out.
 const TICK_STYLE: CSSProperties = {
   width: TICK_MAX_WIDTH,
   height: TICK_HEIGHT,
   background: "currentColor",
-  pointerEvents: "auto",
 };
 
 interface SectionRailProps {

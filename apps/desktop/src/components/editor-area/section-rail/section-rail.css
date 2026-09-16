@@ -42,6 +42,16 @@
   transform-origin: right center;
   transform: scaleX(var(--tick-len));
   opacity: var(--tick-dim);
+  pointer-events: auto;
+}
+
+/* The rail fades out when the popover takes over, but `pointer-events: none` on
+   the container does not suppress a child that re-enables it — so without this
+   the invisible ticks keep taking the clicks meant for the popover rows
+   underneath them. Re-enabling lives here rather than inline for the same
+   reason: an inline value would outrank this rule. */
+.section-rail-ticks[data-open="true"] .section-rail-tick {
+  pointer-events: none;
 }
 
 .section-rail-popover {
