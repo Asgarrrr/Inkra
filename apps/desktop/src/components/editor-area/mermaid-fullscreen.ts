@@ -6,9 +6,13 @@
 // depend on the user agent's modal-dialog quirks.
 
 import { mountMermaidCanvas } from "./mermaid-canvas";
-import { renderMermaid } from "./mermaid-renderer";
+import { ensureMermaid, renderMermaid } from "./mermaid-renderer";
 
-export function openMermaidFullscreen(source: string, ariaLabel: string): void {
+// Async only because the renderer loads on demand. In practice it is already in
+// memory — the user had to see a rendered diagram to reach the expand button —
+// so awaiting here costs a microtask, not a frame.
+export async function openMermaidFullscreen(source: string, ariaLabel: string): Promise<void> {
+  await ensureMermaid();
   const result = renderMermaid(source);
   if (!result.svg) return;
 

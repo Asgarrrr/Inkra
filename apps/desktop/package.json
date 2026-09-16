@@ -35,7 +35,6 @@
     "cmdk": "catalog:",
     "dompurify": "catalog:",
     "katex": "catalog:",
-    "node-emoji": "catalog:",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "catalog:",
@@ -49,6 +48,8 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^5.2.0",
     "@welldone-software/why-did-you-render": "catalog:",
+    "emojilib": "catalog:",
+    "node-emoji": "catalog:",
     "typescript": "~5.8.3",
     "vite": "catalog:"
   }

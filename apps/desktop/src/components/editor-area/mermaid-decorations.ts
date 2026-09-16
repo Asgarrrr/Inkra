@@ -2,7 +2,7 @@ import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { foldableSyntaxFacet } from "@/lib/prosemark-core/main";
-import { renderMermaid } from "./mermaid-renderer";
+import { describeRenderError, ensureMermaid, renderMermaid } from "./mermaid-renderer";
 import { MERMAID_CANVAS_HEIGHT, MermaidCanvasHandle, mountMermaidCanvas } from "./mermaid-canvas";
 import { openMermaidFullscreen } from "./mermaid-fullscreen";
 import "./mermaid-canvas.css";
@@ -14,7 +14,58 @@ const WIDGET_VERTICAL_PADDING = 16;
 // Map keyed by wrapper DOM element so `updateDOM` and `destroy` can find the
 // live canvas handle without round-tripping through CodeMirror state. Weak so
 // disposed wrappers don't leak.
-const widgetHandles = new WeakMap<HTMLElement, MermaidCanvasHandle>();
+//
+// `fenceText` is the freshness token for deferred renders. The entry object is
+// reused across `updateDOM`, so a callback compares both its identity (did the
+// wrapper get destroyed and replaced?) and the fence text it captured (did the
+// fence change while the renderer was loading?).
+type WidgetEntry = { handle: MermaidCanvasHandle; fenceText: string };
+const widgetHandles = new WeakMap<HTMLElement, WidgetEntry>();
+
+/**
+ * Whether a deferred render may still write to the canvas.
+ *
+ * This check is not optional. `updateSource` cancels the canvas's in-flight
+ * 150ms source-change debounce, so writing a superseded `fenceText` would
+ * discard keystrokes the user has already typed into the nested editor and
+ * destroy their caret. Two ways to go stale: the wrapper was destroyed and its
+ * entry dropped, or `updateDOM` moved the entry on to a different fence.
+ */
+export function isDeferredRenderStale(
+  live: WidgetEntry | undefined,
+  entry: WidgetEntry,
+  capturedFenceText: string,
+): boolean {
+  return live !== entry || entry.fenceText !== capturedFenceText;
+}
+
+/**
+ * Paint a diagram that could not render synchronously because the renderer was
+ * not in memory yet.
+ */
+function renderWhenLoaded(
+  wrapper: HTMLElement,
+  entry: WidgetEntry,
+  body: string,
+  fenceText: string,
+): void {
+  const isStale = () => isDeferredRenderStale(widgetHandles.get(wrapper), entry, fenceText);
+
+  ensureMermaid().then(
+    () => {
+      if (isStale()) return;
+      const result = renderMermaid(body);
+      // `pending` is unreachable once the module is loaded; treating it as a
+      // no-op keeps the canvas on its last good frame if that ever changes.
+      if (result.pending) return;
+      entry.handle.updateSource(result.svg ?? "", fenceText, result.error);
+    },
+    (err) => {
+      if (isStale()) return;
+      entry.handle.updateSource("", fenceText, describeRenderError(err));
+    },
+  );
+}
 
 /**
  * Mermaid widget. Identity is the fence text: it determines both the body
@@ -51,13 +102,21 @@ class MermaidWidget extends WidgetType {
     wrapper.append(host);
 
     const ariaLabel = `Mermaid diagram: ${this.body.split("\n")[0]}`;
-    const onExpand = () => openMermaidFullscreen(this.body, ariaLabel);
+    // The overlay renders its own copy of the diagram, so it can only fail if
+    // the renderer is somehow still not loaded — report rather than leaving an
+    // unhandled rejection behind a button that appears to do nothing.
+    const onExpand = () => {
+      openMermaidFullscreen(this.body, ariaLabel).catch((error: unknown) => {
+        console.error("[editor] Failed to open the diagram fullscreen:", error);
+      });
+    };
     const onSourceChange = (next: string) => writeFenceText(view, host, next);
 
-    // Synchronous render. beautiful-mermaid is sync and the SVG cache makes
-    // repeat calls O(map lookup), so the wrapper paints with its final SVG in
-    // the same frame it enters the DOM — no IntersectionObserver, no async
-    // gap that can leave the user stuck on a placeholder.
+    // Synchronous whenever it can be: the renderer is sync once loaded and the
+    // SVG cache makes repeat calls O(map lookup), so the wrapper paints with
+    // its final SVG in the frame it enters the DOM. Only the first diagram of a
+    // session mounts empty and fills in when the renderer arrives — the frame
+    // is fixed-height either way, so nothing below it moves.
     const result = renderMermaid(this.body);
     const handle = mountMermaidCanvas(host, {
       svgHtml: result.svg ?? "",
@@ -66,8 +125,11 @@ class MermaidWidget extends WidgetType {
       onSourceChange,
       onExpand,
     });
+    const entry: WidgetEntry = { handle, fenceText: this.fenceText };
+    widgetHandles.set(wrapper, entry);
+
     if (result.error) handle.updateSource("", this.fenceText, result.error);
-    widgetHandles.set(wrapper, handle);
+    else if (result.pending) renderWhenLoaded(wrapper, entry, this.body, this.fenceText);
 
     return wrapper;
   }
@@ -76,16 +138,27 @@ class MermaidWidget extends WidgetType {
   // reuse the existing DOM. Returning `true` keeps the DOM (and the nested
   // editor's focus, selection, scroll, history) intact across source changes.
   updateDOM(dom: HTMLElement, _view: EditorView): boolean {
-    const handle = widgetHandles.get(dom);
-    if (!handle) return false;
+    const entry = widgetHandles.get(dom);
+    if (!entry) return false;
+    // Record the new fence before anything can await, so a deferred render
+    // still holding the old one recognises itself as stale.
+    entry.fenceText = this.fenceText;
+
     const result = renderMermaid(this.body);
-    handle.updateSource(result.svg ?? "", this.fenceText, result.error);
+    if (result.pending) {
+      // Leave the canvas on its current frame rather than blanking it, and
+      // leave the nested editor alone — `updateSource` would cancel its
+      // pending debounce, which is exactly the keystroke loss to avoid.
+      renderWhenLoaded(dom, entry, this.body, this.fenceText);
+      return true;
+    }
+    entry.handle.updateSource(result.svg ?? "", this.fenceText, result.error);
     return true;
   }
 
   destroy(dom: HTMLElement): void {
-    const handle = widgetHandles.get(dom);
-    handle?.destroy();
+    const entry = widgetHandles.get(dom);
+    entry?.handle.destroy();
     widgetHandles.delete(dom);
   }
 

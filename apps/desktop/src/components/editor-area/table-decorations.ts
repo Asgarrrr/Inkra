@@ -7,7 +7,7 @@ import {
   type InlineContext,
   type MarkdownConfig,
 } from "@lezer/markdown";
-import * as emoji from "node-emoji";
+import { getEmoji } from "@/lib/emoji";
 import {
   foldableSyntaxFacet,
   prosemarkMarkdownSyntaxExtensions,
@@ -356,7 +356,7 @@ function renderMarkdownNode(markdown: string, node: SyntaxNode): TableCellInline
     }
     case "Emoji": {
       const emojiName = markdown.slice(node.from + 1, node.to - 1);
-      return [{ type: "text", text: emoji.get(emojiName) || markdown.slice(node.from, node.to) }];
+      return [{ type: "text", text: getEmoji(emojiName) || markdown.slice(node.from, node.to) }];
     }
     default:
       if (node.firstChild) return renderMarkdownChildren(markdown, node);
