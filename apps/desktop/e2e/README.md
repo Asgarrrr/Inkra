@@ -69,6 +69,37 @@ bundle identifier (see below).
 4. The spec runs; afterwards `onComplete` kills the intermediary and the app
    quits.
 
+## Driving input
+
+There is **no trusted keydown** in this harness. Measured while building
+`probes/keystroke-probe.spec.js`, against a real document:
+
+| method                   | keydown | `isTrusted` | `beforeinput`  | inserts text |
+| ------------------------ | ------- | ----------- | -------------- | ------------ |
+| `browser.keys("a")`      | yes     | **false**   | no             | **no**       |
+| `browser.keys("Enter")`  | yes     | **false**   | no             | yes          |
+| `element.addValue("a")`  | **no**  | —           | yes (**true**) | yes          |
+| `browser.action().key()` | no      | —           | no             | no           |
+
+So:
+
+- **Type with `addValue`.** It is the only method that inserts a character
+  into CodeMirror's contenteditable, and it leaves the caret where it found
+  it rather than jumping to the start.
+- **Send named keys with `browser.keys`.** Enter and Backspace work because
+  CodeMirror's keymap runs on keydown regardless of trust. Printable
+  characters do not, because native text insertion needs a trusted event.
+- **Never expect one keystroke to produce both a keydown and an insertion.**
+  Anything correlating the two — an input-latency probe, for instance — has
+  to watch `keydown` _and_ `beforeinput` and take whichever arrives.
+- **`Cmd+V` never reaches the page**, by any route tried. The clipboard
+  plugin seeds and reads fine (`plugin:clipboard-manager|write_text`), so a
+  spec that needs paste should dispatch a real `paste` `ClipboardEvent`,
+  which does reach the store.
+
+`specs/content-search.spec.js` records the related finding for React-controlled
+inputs: synthetic `KeyboardEvent`s do not reach the store, `addValue` does.
+
 ## Build flavors
 
 - `vp run desktop#dev` and `vp build` are unchanged — no WebDriver server.
