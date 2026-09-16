@@ -27,11 +27,23 @@ pub struct StartupState {
     pub standalone_file: Option<FileContent>,
 }
 
+/// The native launch timeline, for correlating with the WebView's own marks.
+///
+/// `process_start_epoch_ms` shares a clock and a unit with
+/// `performance.timeOrigin`, so the difference between them is the cost of
+/// getting from process spawn to the WebView navigating — the one span neither
+/// timeline can see on its own.
+#[tauri::command]
+pub fn get_startup_timings() -> Option<crate::startup_metrics::StartupTimings> {
+    crate::startup_metrics::snapshot()
+}
+
 #[tauri::command]
 pub async fn get_startup_state(
     webview: tauri::Webview,
     app: tauri::AppHandle,
 ) -> Result<StartupState, AppError> {
+    crate::startup_metrics::mark("ipc:get_startup_state");
     let label = webview.label().to_string();
     let state = app.state::<AppState>().get_or_create(&label);
 

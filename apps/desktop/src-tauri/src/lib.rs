@@ -8,6 +8,7 @@ pub mod inkra_cli;
 #[cfg(target_os = "macos")]
 mod macos;
 pub mod open_target;
+pub mod startup_metrics;
 mod state;
 mod telemetry;
 #[cfg(desktop)]
@@ -491,6 +492,7 @@ fn handle_single_instance(app: &tauri::AppHandle, argv: Vec<String>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    startup_metrics::mark("run-enter");
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             handle_single_instance(app, argv);
@@ -506,14 +508,18 @@ pub fn run() {
     #[cfg(feature = "e2e")]
     let builder = builder.plugin(tauri_plugin_webdriver::init());
 
+    startup_metrics::mark("builder-configured");
+
     builder
         .manage(AppState::new())
         .setup(|app| {
+            startup_metrics::mark("setup-enter");
             // Initialize the main window's per-window state (settings layer,
             // pending-open queue). `get_or_create` lazily builds the
             // `WorkspaceState` for the `"main"` label.
             let main_state = app.state::<AppState>().get_or_create(MAIN_WINDOW_LABEL);
             init_window_settings(app.handle(), &main_state)?;
+            startup_metrics::mark("window-settings-ready");
 
             // Telemetry reads its enabled/email values out of the settings
             // layer above, so it must come after `init_window_settings` and
@@ -528,6 +534,7 @@ pub fn run() {
                 telemetry::init(app.handle(), enabled, email);
                 telemetry::report_app_opened();
             }
+            startup_metrics::mark("telemetry-ready");
 
             // On macOS, `open -a Inkra /path` delivers the path via
             // RunEvent::Opened, not argv. On Linux/Windows the path
@@ -552,6 +559,7 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
                 install_app_menu(app.handle(), config_dir)?;
+                startup_metrics::mark("app-menu-installed");
                 #[cfg(target_os = "macos")]
                 dock_menu::install(app.handle());
 
@@ -570,6 +578,7 @@ pub fn run() {
                 attach_window_handlers(app.handle(), &window);
             }
 
+            startup_metrics::mark("setup-exit");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -616,6 +625,7 @@ pub fn run() {
             telemetry::telemetry_mark_prompted,
             telemetry::telemetry_report_declined,
             commands::startup::get_startup_state,
+            commands::startup::get_startup_timings,
             #[cfg(target_os = "macos")]
             commands::shell_install::cli_status,
             #[cfg(target_os = "macos")]

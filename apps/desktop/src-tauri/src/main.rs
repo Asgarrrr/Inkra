@@ -9,6 +9,11 @@ use std::process::ExitCode;
 /// basename is `inkra` and we run the CLI. Invoked as `Inkra` (the usual
 /// case, direct from the bundle), we run the Tauri app.
 fn main() -> ExitCode {
+    // First statement on purpose: this is the zero point every native startup
+    // mark is measured from, and it is the only thing that can be compared with
+    // the WebView's `performance.timeOrigin`.
+    desktop_lib::startup_metrics::init();
+
     if is_cli_invocation() {
         let argv: Vec<_> = std::env::args_os().collect();
         let cwd = std::env::current_dir().unwrap_or_else(|_| Path::new(".").into());
