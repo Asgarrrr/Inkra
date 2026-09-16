@@ -12,18 +12,27 @@ import { EDITOR_SCROLLBAR_GUTTER } from "./editor-scroll-container";
 import { scrollPosToSafeTop } from "./editor-scroll";
 import "./section-rail.css";
 
-// Every tick is the same width; the active one is told apart by opacity alone.
-const TICK_WIDTH = 8;
+// Full width of the tick at the reading position; the ones around it are
+// scaled down by the fisheye falloff in section-rail.css.
+const TICK_MAX_WIDTH = 20;
 const TICK_HEIGHT = 1;
 const TICK_GAP = 6;
 // Below this many headings the rail is noise: a short note needs no map.
 const MIN_HEADINGS = 5;
 const RAIL_EDGE_INSET = 0;
-const RAIL_INNER_WIDTH = TICK_WIDTH + 2;
+const RAIL_INNER_WIDTH = TICK_MAX_WIDTH + 2;
 const RAIL_ZONE_WIDTH = RAIL_EDGE_INSET + RAIL_INNER_WIDTH;
 const POPOVER_WIDTH = 260;
 const POPOVER_EDGE_INSET = RAIL_EDGE_INSET;
 const POPOVER_TRANSITION_MS = 180;
+
+// Width is the unscaled maximum; scaleX and opacity come from the falloff.
+const TICK_STYLE: CSSProperties = {
+  width: TICK_MAX_WIDTH,
+  height: TICK_HEIGHT,
+  background: "currentColor",
+  pointerEvents: "auto",
+};
 
 interface SectionRailProps {
   filePath: string;
@@ -55,7 +64,8 @@ function handleContextMenu(event: React.MouseEvent, heading: DocumentHeading) {
 
 export function SectionRail({ filePath, view, scrollContainerRef }: SectionRailProps) {
   const headings = useDocumentHeadings(filePath);
-  const { activeIndex } = useActiveHeadings(view, scrollContainerRef, headings);
+  const railRef = useRef<HTMLElement>(null);
+  const { activeIndex } = useActiveHeadings(view, scrollContainerRef, headings, railRef);
   const [isOpen, setIsOpen] = useState(false);
   const { shouldRender, phase } = useMountTransition(isOpen, POPOVER_TRANSITION_MS);
   useEscKey(isOpen, () => setIsOpen(false));
@@ -110,41 +120,35 @@ export function SectionRail({ filePath, view, scrollContainerRef }: SectionRailP
           className="pointer-events-none absolute left-0 right-0 top-1/2 h-[70vh] -translate-y-1/2 overflow-hidden"
         >
           <nav
+            ref={railRef}
             className="section-rail-ticks absolute top-1/2 flex flex-col"
             data-open={isOpen ? "true" : "false"}
-            style={{
-              right: RAIL_EDGE_INSET,
-              width: RAIL_INNER_WIDTH,
-              gap: TICK_GAP,
-              color: "var(--text-primary, currentColor)",
-              pointerEvents: "none",
-            }}
+            style={
+              {
+                right: RAIL_EDGE_INSET,
+                width: RAIL_INNER_WIDTH,
+                gap: TICK_GAP,
+                color: "var(--text-primary, currentColor)",
+                pointerEvents: "none",
+                // First-paint value; the scroll handler owns it from then on.
+                "--rail-pos": "0",
+              } as CSSProperties
+            }
             aria-label="Document sections"
           >
-            {headings.map((heading, i) => {
-              const isActive = i === activeIndex;
-              const tickStyle: CSSProperties = {
-                width: TICK_WIDTH,
-                height: TICK_HEIGHT,
-                background: "currentColor",
-                opacity: isActive ? 1 : 0.35,
-                transition: "opacity 300ms ease-in",
-                pointerEvents: "auto",
-              };
-              return (
-                <button
-                  key={`${heading.line}-${i}`}
-                  type="button"
-                  className="section-rail-tick block cursor-default border-0 bg-transparent p-0"
-                  style={tickStyle}
-                  title={heading.text}
-                  aria-label={heading.text}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => handleTickClick(heading)}
-                  onContextMenu={(event) => handleContextMenu(event, heading)}
-                />
-              );
-            })}
+            {headings.map((heading, i) => (
+              <button
+                key={`${heading.line}-${i}`}
+                type="button"
+                className="section-rail-tick block cursor-default border-0 bg-transparent p-0"
+                style={{ ...TICK_STYLE, "--tick-index": i } as CSSProperties}
+                title={heading.text}
+                aria-label={heading.text}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => handleTickClick(heading)}
+                onContextMenu={(event) => handleContextMenu(event, heading)}
+              />
+            ))}
           </nav>
         </ScrollFade>
       </div>
