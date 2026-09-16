@@ -1,11 +1,24 @@
 import { describe, expect, test } from "vite-plus/test";
 import { readingPosition } from "../src/components/editor-area/section-rail/use-active-headings";
 
-// Heading tops are viewport y coordinates, so they shrink as the doc scrolls
-// up. The threshold is a fixed line near the top of the scroller.
+// Tops and threshold share one coordinate space; which one is the caller's
+// business. The hook passes document coordinates — heading tops that scrolling
+// does not move, against a threshold shifted by `view.documentTop` — so that it
+// can measure the tops once and cache them.
 const THRESHOLD = 140;
 
 describe("readingPosition", () => {
+  test("is invariant under a shift of the shared coordinate space", () => {
+    // The guard on the caching: converting the threshold into document
+    // coordinates must give what converting every top into screen ones would.
+    const tops = [-500, 40, 240, 900];
+    const screen = readingPosition(tops, THRESHOLD, false);
+    for (const documentTop of [-2400, -13, 0, 777]) {
+      const shifted = tops.map((top) => top - documentTop);
+      expect(readingPosition(shifted, THRESHOLD - documentTop, false)).toBeCloseTo(screen, 10);
+    }
+  });
+
   test("is a whole number when a heading sits on the threshold", () => {
     expect(readingPosition([-200, 140, 500, 900], THRESHOLD, false)).toBe(1);
   });
