@@ -1,4 +1,4 @@
-import { dismissEditorNotice, useEditorNoticeStore } from "./editor-notice-store";
+import { dismissEditorNotice, useEditorNoticeStore } from "../editor-notice-store";
 
 export function EditorNoticeBanner() {
   const message = useEditorNoticeStore((s) => s.message);

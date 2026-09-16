@@ -11,7 +11,7 @@ import {
   FOOTER_METRICS,
   type FooterContextMenuState,
   type FooterMetricSettingKey,
-} from "../src/components/editor-area/footer-context-menu";
+} from "../src/components/editor-area/document-footer/footer-context-menu";
 
 function makeState(
   visibility: Record<FooterMetricSettingKey, boolean>,

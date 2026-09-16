@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { DocumentHeading } from "@/hooks/use-document-headings";
-import { EDITOR_SAFE_SCROLL_MARGIN } from "./editor-scroll-container";
+import { EDITOR_SAFE_SCROLL_MARGIN } from "../editor-scroll-container";
 
 // Match the scroll-to-heading landing y so clicking a tick / row immediately
 // activates the destination heading instead of keeping the previous one

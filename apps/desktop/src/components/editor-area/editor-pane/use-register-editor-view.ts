@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { EditorView } from "@codemirror/view";
-import { registerEditorView, unregisterEditorView } from "./editor-view-registry";
-import { applyRegisteredViewTarget } from "./link-navigation";
+import { registerEditorView, unregisterEditorView } from "../editor-view-registry";
+import { applyRegisteredViewTarget } from "../link-navigation";
 
 /** Publishes a pane's live view so navigation can scroll it in place. Only the
  *  active pane registers: two tabs can hold the same file, and scrolling the

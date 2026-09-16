@@ -1,7 +1,7 @@
 import { ok, strictEqual } from "node:assert/strict";
 
 // Section rail fisheye: tick width and opacity fall off continuously around the
-// fractional reading position (see src/components/editor-area/section-rail.css).
+// fractional reading position (see src/components/editor-area/section-rail/section-rail.css).
 // The falloff itself lives in CSS, so the unit tests cannot see it — these
 // checks measure the rendered geometry in the real WKWebView instead.
 //

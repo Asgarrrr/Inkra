@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { closeEditorSearch } from "./editor-search-store";
+import { closeEditorSearch } from "../editor-search-store";
 
 export function useCloseEditorSearchWhenInactive(isActive: boolean) {
   // isActive derives from store activeTabId mutated by many actions/UI entry points; no single host event handler exists and scattering the side effect would break decoupling.

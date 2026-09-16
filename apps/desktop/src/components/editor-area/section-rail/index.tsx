@@ -7,9 +7,9 @@ import { SurfaceCard } from "@/components/surface-card";
 import { useActiveHeadings } from "./use-active-headings";
 import { useEscKey } from "./use-esc-key";
 import { useMountTransition } from "./use-mount-transition";
-import { showNativeContextMenu } from "./editor-context-menu";
-import { EDITOR_SCROLLBAR_GUTTER } from "./editor-scroll-container";
-import { scrollPosToSafeTop } from "./editor-scroll";
+import { showNativeContextMenu } from "../editor-context-menu";
+import { EDITOR_SCROLLBAR_GUTTER } from "../editor-scroll-container";
+import { scrollPosToSafeTop } from "../editor-scroll";
 import "./section-rail.css";
 
 // Full width of the tick at the reading position; the ones around it are

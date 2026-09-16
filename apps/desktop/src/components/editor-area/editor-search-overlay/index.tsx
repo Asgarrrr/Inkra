@@ -12,7 +12,7 @@ import {
   applyEditorSearchQuery,
   closeEditorSearch,
   useEditorSearchStore,
-} from "./editor-search-store";
+} from "../editor-search-store";
 import { SurfaceCard } from "@/components/surface-card";
 
 interface MatchInfo {

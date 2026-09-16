@@ -2,18 +2,18 @@ import { useRef, useCallback, useEffect } from "react";
 import { EditorView } from "@codemirror/view";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { history } from "@codemirror/commands";
-import { closeEditorSearch } from "./editor-search-store";
-import { findOuterScroller, jumpScrollTop, jumpToPos } from "./editor-scroll";
-import { createEditorExtensions } from "./editor-extensions";
-import { resolveTarget } from "./link-navigation";
-import { advanceViewportParse } from "./viewport-parse";
-import { clampSelectionToHeadings } from "./heading-decorations";
+import { closeEditorSearch } from "../editor-search-store";
+import { findOuterScroller, jumpScrollTop, jumpToPos } from "../editor-scroll";
+import { createEditorExtensions } from "../editor-extensions";
+import { resolveTarget } from "../link-navigation";
+import { advanceViewportParse } from "../viewport-parse";
+import { clampSelectionToHeadings } from "../heading-decorations";
 import * as editorApi from "@/hooks/editor-api";
 import { useReloadVersion } from "@/hooks/use-tabs";
 import { getFileName } from "@/lib/paths";
 import { consumePendingTarget } from "@/lib/pending-target";
 import { logTimeline, mark } from "@/lib/startup-metrics";
-import { showEditorNotice } from "./editor-notice-store";
+import { showEditorNotice } from "../editor-notice-store";
 
 function resolveScrollContainer(root: HTMLElement, getScrollContainer?: () => HTMLElement | null) {
   return getScrollContainer?.() ?? findOuterScroller(root);

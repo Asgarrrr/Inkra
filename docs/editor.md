@@ -41,7 +41,7 @@ When the scrollable element is an ancestor:
 - Scroll it yourself with `scroller.scrollTo({ top, behavior: "auto" })`. `behavior: "smooth"` is async and gets interrupted by rapid keystrokes (e.g. Cmd+G held down).
 - Account for `clientTop` if the ancestor has a border (Inkra's container has a 12px transparent border-top to give the mask gradient room).
 
-Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/use-prosemark-editor.ts`.
+Reference: `EditorView.scrollHandler.of((view, range) => …)` in `apps/desktop/src/components/editor-area/prosemark-editor/use-prosemark-editor.ts`.
 
 ## A programmatic jump parses, persists its landing position, flashes, and corrects its drift
 
