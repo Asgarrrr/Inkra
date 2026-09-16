@@ -39,6 +39,28 @@ import { appendFileSync } from "node:fs";
 // So what is left of startup is in the native/WebView layer, not in JavaScript.
 // Trimming more bundle buys very little: the entry chunk's entire parse+eval is
 // 37 ms, which is the hard ceiling on anything further removed from it.
+//
+// `get_startup_timings` then supplied the half neither timeline could see, and
+// the two line up: the IPC is stamped at 403 ms from process spawn on the Rust
+// side and at 153 ms on the WebView side, against a `timeOrigin` 250 ms after
+// spawn. Whole launch, from process spawn:
+//
+//   Tauri/Cocoa bootstrap before setup()   196 ms   48%
+//   our setup() body                         2 ms    0.5%
+//   window + WebView -> navigation          52 ms   13%
+//   nav WebView + HTML                      37 ms    9%
+//   entry chunk parse+eval                  38 ms    9%
+//   first-async-boundary latency            75 ms   18%
+//   React + effects + IPC + hydrate          7 ms    2%
+//                                          -------
+//                                          ~407 ms
+//
+// Application JavaScript is 45 ms of that, and our own Rust is 2 ms. Nearly
+// half is `tauri::Builder::run()` getting to the point where it calls `setup` —
+// NSApplication, window and WKWebView construction, none of it ours. It also
+// rules out the earlier guess that a busy Tauri main thread explained the 75 ms:
+// `setup` exits at 198 ms, long before that window opens, so the delay is
+// WebKit-internal.
 describe("startup probe", function () {
   it("reports the boot timeline", async function () {
     await $("#root > *").waitForExist({ timeout: 20_000 });
@@ -70,6 +92,20 @@ describe("startup probe", function () {
         timeOrigin: performance.timeOrigin,
       };
     });
+
+    // The native timeline. `process_start_epoch_ms` shares a clock with
+    // `performance.timeOrigin`, so their difference is the span neither side
+    // can see alone: process spawn to WebView navigation.
+    const native = await browser.executeAsync((done) => {
+      window.__TAURI_INTERNALS__
+        .invoke("get_startup_timings", {})
+        .then((v) => done(v))
+        .catch(() => done(null));
+    });
+    sample.native = native;
+    if (native) {
+      sample.spawnToTimeOrigin = sample.timeOrigin - native.process_start_epoch_ms;
+    }
 
     appendFileSync(
       process.env.STARTUP_PROBE_OUT ?? "/tmp/startup-probe.jsonl",
