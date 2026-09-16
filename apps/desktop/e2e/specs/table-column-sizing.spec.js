@@ -1,4 +1,12 @@
 import { ok } from "node:assert/strict";
+import { join } from "node:path";
+
+import {
+  createWorkspace,
+  openWorkspace,
+  removeWorkspace,
+  waitForMount,
+} from "../helpers/workspace.js";
 
 // Rendered table column sizing (see SPECs/table-column-sizing-spec.md).
 // `EditorView.lineWrapping` puts `overflow-wrap: anywhere` on `.cm-content`,
@@ -7,9 +15,6 @@ import { ok } from "node:assert/strict";
 // checks pin the fix: no mid-word breaks in prose, no uniform minimum width on
 // trivial columns, top-aligned cells, left-aligned headers, and an explicit
 // delimiter-row alignment still winning.
-//
-// Requires a restorable workspace; self-skips on the welcome screen so it stays
-// safe inside the default `pnpm run test:e2e` sweep.
 describe("table column sizing", function () {
   const FILE_STEM = "table-column-sizing-e2e";
   const DOC = [
@@ -34,21 +39,8 @@ describe("table column sizing", function () {
     "",
   ].join("\n");
 
-  let workspaceRestored = false;
+  let workspace = null;
   let filePath = null;
-
-  async function invoke(cmd, args) {
-    return browser.executeAsync(
-      (c, a, done) => {
-        window.__TAURI_INTERNALS__
-          .invoke(c, a)
-          .then((v) => done({ ok: true, value: v }))
-          .catch((e) => done({ ok: false, error: e && e.message ? e.message : String(e) }));
-      },
-      cmd,
-      args,
-    );
-  }
 
   // Every table currently rendered, with the geometry the fix is about. A
   // mid-word break is a run of letters/digits whose client rects span more than
@@ -94,36 +86,20 @@ describe("table column sizing", function () {
   }
 
   before(async function () {
-    workspaceRestored = await $('button[aria-label="Hide sidebar"]')
-      .waitForExist({ timeout: 20_000 })
-      .catch(() => false);
-    if (!workspaceRestored) return;
-
-    const recents = await invoke("get_recent_workspaces", {});
-    const root = recents.ok && Array.isArray(recents.value) ? recents.value[0] : null;
-    ok(root, "no workspace root to seed the table document into");
-
-    filePath = `${root}/${FILE_STEM}.md`;
-    const wrote = await invoke("write_file", { path: filePath, content: DOC });
-    ok(wrote.ok, `failed to seed ${filePath}: ${wrote.error}`);
-
-    // Reload rather than waiting on the workspace watcher to notice the new
-    // file: startup rebuilds the file index from disk, so the seeded document
-    // is in the sidebar deterministically.
-    await browser.execute(() => window.location.reload());
-    await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 20_000 });
+    workspace = createWorkspace("inkra-e2e-table-sizing-", { [`${FILE_STEM}.md`]: DOC });
+    filePath = join(workspace, `${FILE_STEM}.md`);
+    await openWorkspace(workspace);
+    await waitForMount();
   });
 
-  beforeEach(function () {
-    if (!workspaceRestored) this.skip();
-  });
-
-  after(async function () {
-    if (filePath) await invoke("delete_entry", { path: filePath });
+  after(function () {
+    removeWorkspace(workspace);
   });
 
   it("opens the seeded document from the sidebar", async function () {
-    const row = await $(`span*=Table sizing check`);
+    // By path rather than by rendered label: the label is the document title
+    // under the default `sidebar-file-label` and the filename stem otherwise.
+    const row = await $(`[data-tree-path="${filePath}"]`);
     await row.waitForExist({ timeout: 20_000 });
     await row.click();
 

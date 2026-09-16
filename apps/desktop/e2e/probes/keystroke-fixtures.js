@@ -14,10 +14,12 @@
 // Math.random — so two runs on two days type into byte-identical documents.
 
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const APP_DATA_DIR = join(homedir(), "Library", "Application Support", "com.inkra.e2e");
+import { APP_DATA_DIR } from "../helpers/app-data.js";
+
+export { APP_DATA_DIR };
 
 const WORDS = [
   "the",

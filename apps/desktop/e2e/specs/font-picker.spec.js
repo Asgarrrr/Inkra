@@ -2,33 +2,22 @@ import { ok, strictEqual } from "node:assert/strict";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { invoke, openWorkspace, waitForMount } from "../helpers/workspace.js";
+
 const E2E_WORKSPACE = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const INITIAL_STACK = 'Custom Primary, Georgia, "Times New Roman", serif';
 const SELECTED_STACK = 'Menlo, Georgia, "Times New Roman", serif';
 
 describe("Settings font selects", function () {
   before(async function () {
-    const workspaceRestored = await $('[data-sidebar-surface][data-workspace-open="true"]')
-      .waitForExist({ timeout: 3_000 })
-      .catch(() => false);
-    if (!workspaceRestored) {
-      await browser.executeAsync((path, done) => {
-        window.__TAURI_INTERNALS__
-          .invoke("open_workspace", { path })
-          .then(() => done(null))
-          .catch((error) => done(error && error.message ? error.message : String(error)));
-      }, E2E_WORKSPACE);
-    }
+    await openWorkspace(E2E_WORKSPACE);
 
-    await browser.executeAsync((value, done) => {
-      window.__TAURI_INTERNALS__
-        .invoke("set_setting", { key: "fonts.mono", value, scope: "global" })
-        .then(() => done(null))
-        .catch((error) => done(error && error.message ? error.message : String(error)));
-    }, INITIAL_STACK);
+    // A stored stack with a non-installed primary and a fallback tail: the
+    // test precondition for "changes the primary while preserving the tail".
+    // Settings are only picked up on reload.
+    await invoke("set_setting", { key: "fonts.mono", value: INITIAL_STACK, scope: "global" });
     await browser.refresh();
-    await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 15_000 });
-    await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({ timeout: 15_000 });
+    await waitForMount();
   });
 
   async function pressCmd(key) {
