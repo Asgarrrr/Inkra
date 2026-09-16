@@ -1,10 +1,26 @@
 import { useEffect } from "react";
 import { useUIStore } from "@/stores/ui-store";
-import { useEditorStore } from "@/stores/editor-store";
+import { useEditorStore, type Tab } from "@/stores/editor-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toggleSidebar } from "@/hooks/use-sidebar";
 import { getWorkspaceChromeMode } from "@/lib/compact-mode";
+import { detectPlatform, type Platform } from "@/lib/platform";
 import { closeWindow } from "@/lib/tauri";
+
+/**
+ * Whether Cmd+W should close the window rather than a tab. True only when the
+ * launcher is the one tab left: there is nothing to close then, since closing
+ * it just recreates it.
+ *
+ * macOS only, matching the `#[cfg(target_os = "macos")]` on the close-requested
+ * handler in `lib.rs` that turns the close into a hide. Elsewhere the close is
+ * a real close, so returning true would quit the app out from under a user who
+ * only meant to clear the launcher.
+ */
+export function shouldCloseWindowOnCmdW(tabs: Tab[], platform: Platform): boolean {
+  if (platform !== "macos") return false;
+  return tabs.length === 1 && tabs[0].location.kind === "launcher";
+}
 
 function isEditableTargetFocused(): boolean {
   const active = document.activeElement;
@@ -63,16 +79,13 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd+W — close current tab. Once the launcher is the only tab left
-      // there is nothing to close (closing it would just recreate it), so
-      // close the window instead; Rust turns that into a hide for the main
-      // window (see `attach_window_handlers`). Any other tab, including
-      // Settings, closes like a file tab.
+      // Cmd+W — close current tab, or the window itself once only the
+      // launcher is left (see `shouldCloseWindowOnCmdW`). Any other tab,
+      // including Settings, closes like a file tab.
       if (mod && e.key === "w") {
         if (isCompactFileMode) return;
         e.preventDefault();
-        const onlyLauncherLeft = tabs.every((tab) => tab.location.kind === "launcher");
-        if (onlyLauncherLeft && tabs.length <= 1) {
+        if (shouldCloseWindowOnCmdW(tabs, detectPlatform())) {
           void closeWindow();
           return;
         }
