@@ -104,7 +104,14 @@
   --chrome-control-padding: 12px;
   --chrome-drag-height: 72px;
   --inkra-editor-max-width: 734px;
-  --inkra-editor-side-padding: clamp(1.5rem, 4vw, 4rem);
+  /* One gap around the note: the same distance from the top edge and from
+     the sides, scaling with the window height so a small window stays
+     balanced. The sides additionally cap at a share of the width, so a
+     tall, narrow window keeps its text column; the top gap never shrinks
+     for that reason. */
+  --inkra-editor-padding: clamp(3rem, 12vh, 9rem);
+  --inkra-editor-top-padding: var(--inkra-editor-padding);
+  --inkra-editor-side-padding: min(var(--inkra-editor-padding), clamp(1.5rem, 8vw, 9rem));
   --inkra-editor-outer-width: calc(
     var(--inkra-editor-max-width) + var(--inkra-editor-side-padding) +
       var(--inkra-editor-side-padding)

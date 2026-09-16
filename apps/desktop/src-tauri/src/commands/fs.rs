@@ -16,6 +16,9 @@ pub struct DirEntry {
     pub is_dir: bool,
     pub is_markdown: bool,
     pub modified_at: u64,
+    /// Creation time in seconds since the epoch. Falls back to the modified
+    /// time on filesystems without a birth time (many Linux mounts).
+    pub created_at: u64,
     /// Document title extracted from frontmatter `title:` or leading `# ` heading.
     /// `None` for directories or files without a recognizable title.
     pub title: Option<String>,
@@ -106,15 +109,35 @@ fn extract_leading_h1(text: &str) -> Option<String> {
     None
 }
 
+fn epoch_secs(time: std::io::Result<std::time::SystemTime>) -> Option<u64> {
+    time.ok().map(|t| {
+        t.duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    })
+}
+
 pub(crate) fn modified_time(path: &std::path::Path) -> u64 {
     fs::metadata(path)
-        .and_then(|m| m.modified())
-        .map(|t| {
-            t.duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        })
+        .ok()
+        .and_then(|m| epoch_secs(m.modified()))
         .unwrap_or(0)
+}
+
+/// Both timestamps a `DirEntry` carries, from one `stat`. Every caller needs
+/// the pair, and a directory listing runs this once per entry, so reading the
+/// metadata twice would double the syscalls for the whole tree.
+///
+/// Creation time falls back to the modified time where the platform or
+/// filesystem exposes none, so created-time sorting degrades to modified-time
+/// sorting instead of collapsing to zero.
+pub(crate) fn entry_times(path: &std::path::Path) -> (u64, u64) {
+    let Ok(meta) = fs::metadata(path) else {
+        return (0, 0);
+    };
+    let modified = epoch_secs(meta.modified());
+    let created = epoch_secs(meta.created()).or(modified);
+    (modified.unwrap_or(0), created.unwrap_or(0))
 }
 
 /// Recursively checks if a directory contains at least one visible .md file.
@@ -263,12 +286,14 @@ pub fn read_directory_impl(
 
         if file_type.is_dir() {
             if directory_is_sidebar_visible(&entry_path, state)? {
+                let (modified_at, created_at) = entry_times(&entry_path);
                 dirs.push(DirEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: true,
                     is_markdown: false,
-                    modified_at: modified_time(&entry_path),
+                    modified_at,
+                    created_at,
                     title: None,
                 });
             }
@@ -276,19 +301,23 @@ pub fn read_directory_impl(
             let is_markdown = entry_path.extension().and_then(|e| e.to_str()) == Some("md");
             if is_markdown {
                 let title = extract_title(&entry_path);
+                let (modified_at, created_at) = entry_times(&entry_path);
                 files.push(DirEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: false,
                     is_markdown: true,
-                    modified_at: modified_time(&entry_path),
+                    modified_at,
+                    created_at,
                     title,
                 });
             }
         }
     }
 
-    // Sort dirs-first, then alphabetical within each group
+    // Sort dirs-first, then alphabetical by filename within each group. This is
+    // a stable baseline for every consumer; the sidebar tree re-sorts by its
+    // visible label (title or stem) in `flatten-tree.ts`.
     dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     dirs.extend(files);
@@ -358,7 +387,7 @@ pub async fn write_file(
     let write_path = PathBuf::from(&path);
     let result = blocking(move || write_file_impl(&path, &content)).await?;
     state.update_index_modified_at(&write_path, result.modified_at);
-    let _ = app.emit_to(label, "sidebar:metadata-changed", &result.path);
+    let _ = app.emit_to(label, "sidebar:metadata-changed", &result);
     Ok(result)
 }
 
@@ -372,12 +401,14 @@ pub(crate) fn markdown_file_entry(path: &Path) -> Option<DirEntry> {
     }
 
     let name = path.file_name()?.to_string_lossy().to_string();
+    let (modified_at, created_at) = entry_times(path);
     Some(DirEntry {
         name,
         path: path.to_string_lossy().to_string(),
         is_dir: false,
         is_markdown: true,
-        modified_at: modified_time(path),
+        modified_at,
+        created_at,
         title: extract_title(path),
     })
 }
@@ -490,12 +521,14 @@ pub fn create_directory_impl(path: &str) -> Result<DirEntry, AppError> {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
     crate::telemetry::track("folder_created");
+    let (modified_at, created_at) = entry_times(&dir_path);
     Ok(DirEntry {
         name,
         path: path.to_string(),
         is_dir: true,
         is_markdown: false,
-        modified_at: modified_time(&dir_path),
+        modified_at,
+        created_at,
         title: None,
     })
 }

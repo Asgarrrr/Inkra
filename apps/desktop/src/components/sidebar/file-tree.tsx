@@ -20,7 +20,7 @@ import {
   useToggleDirectory,
 } from "@/hooks/use-file-tree";
 import { useOpenFile } from "@/hooks/use-tabs";
-import { useSetting } from "@/hooks/use-settings";
+import { useBooleanSetting, useSetting } from "@/hooks/use-settings";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import * as tauri from "@/lib/tauri";
 import { getFileStem, getParentDir } from "@/lib/paths";
@@ -68,6 +68,8 @@ export function FileTree({
   const togglePinnedFile = useTogglePinnedFile();
   const workspaceRoot = useWorkspaceRoot();
   const fileLabelMode = useSetting("appearance.sidebar-file-label");
+  const sortMode = useSetting("appearance.sidebar-sort");
+  const foldersFirst = useBooleanSetting("appearance.sidebar-folders-first");
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   // Anchor for shift range-select. Only read inside handlers, never rendered,
   // so a ref avoids re-renders that a useState would trigger on every change.
@@ -81,8 +83,9 @@ export function FileTree({
   useAutoRefresh(rootPath, entries.length === 0);
 
   const flatItems = useMemo(
-    () => flattenTree(entries, 0, directoryCache, expandedDirs),
-    [directoryCache, entries, expandedDirs],
+    () =>
+      flattenTree(entries, 0, directoryCache, expandedDirs, fileLabelMode, sortMode, foldersFirst),
+    [directoryCache, entries, expandedDirs, fileLabelMode, sortMode, foldersFirst],
   );
 
   const entryByPath = useMemo(() => {

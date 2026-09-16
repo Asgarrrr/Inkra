@@ -200,7 +200,7 @@ a {
   margin-bottom: 1px;
 }
 
-.alpha-pill {
+.beta-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -307,6 +307,12 @@ a {
   }
 
   .hero {
+    /* The sticky hero is a desktop-only affordance: in the stacked layout it
+       would stay pinned while the video strip scrolls up over the features. */
+    position: static;
+    flex: 1;
+    height: auto;
+    min-height: 0;
     width: auto;
     margin: 0;
     padding: 20px 20px 20px;
@@ -322,10 +328,22 @@ a {
 
   .caption {
     margin-top: 16px;
+    font-size: 12px;
   }
 
   .features {
     gap: 8px;
+  }
+
+  .feature {
+    font-size: 15px;
+    line-height: 140%;
+  }
+
+  .headline {
+    font-size: 24px;
+    letter-spacing: -0.015em;
+    line-height: 120%;
   }
 
   .screenshots {
@@ -344,7 +362,6 @@ a {
 
   .screenshots::-webkit-scrollbar {
     display: none;
-    margin-top: auto;
   }
 
   .shot {
@@ -355,14 +372,8 @@ a {
 }
 
 @media (max-width: 599px) {
-  .headline {
-    font-size: 24px;
-    letter-spacing: -0.015em;
-    line-height: 120%;
-  }
-
   .feature {
-    font-size: 14px;
+    font-size: 13px;
     line-height: 140%;
   }
 
@@ -380,5 +391,27 @@ a {
     width: auto;
     height: 20vh;
     flex-shrink: 0;
+  }
+}
+
+@media (max-width: 375px) {
+  .headline {
+    font-size: 20px;
+  }
+
+  .pill {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .download {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .feature {
+    font-size: 11px;
   }
 }

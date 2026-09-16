@@ -57,10 +57,11 @@ export const EditorPane = memo(function EditorPane({ path, isActive }: EditorPan
     >
       <EditorScrollContainer ref={scrollContainerRef}>
         <div
-          className="mx-auto w-full pt-32 pb-6 md:pt-[9rem]"
+          className="mx-auto w-full"
           style={{
             maxWidth: "var(--inkra-editor-outer-width)",
             boxSizing: "border-box",
+            paddingTop: "var(--inkra-editor-top-padding)",
             paddingLeft: "var(--inkra-editor-side-padding)",
             paddingRight: "var(--inkra-editor-side-padding)",
           }}
