@@ -1,12 +1,17 @@
 import { ok, strictEqual } from "node:assert/strict";
+import { join } from "node:path";
+
+import {
+  createWorkspace,
+  openWorkspace,
+  removeWorkspace,
+  waitForMount,
+} from "../helpers/workspace.js";
 
 // Section rail fisheye: tick width and opacity fall off continuously around the
 // fractional reading position (see src/components/editor-area/section-rail/section-rail.css).
 // The falloff itself lives in CSS, so the unit tests cannot see it — these
 // checks measure the rendered geometry in the real WKWebView instead.
-//
-// Requires a restorable workspace; self-skips on the welcome screen so it stays
-// safe inside the default `pnpm run test:e2e` sweep.
 describe("section rail fisheye", function () {
   const FILE_STEM = "section-rail-fisheye-e2e";
   const HEADING_COUNT = 8;
@@ -25,21 +30,8 @@ describe("section rail fisheye", function () {
     return lines.join("\n");
   })();
 
-  let workspaceRestored = false;
+  let workspace = null;
   let filePath = null;
-
-  async function invoke(cmd, args) {
-    return browser.executeAsync(
-      (c, a, done) => {
-        window.__TAURI_INTERNALS__
-          .invoke(c, a)
-          .then((v) => done({ ok: true, value: v }))
-          .catch((e) => done({ ok: false, error: e && e.message ? e.message : String(e) }));
-      },
-      cmd,
-      args,
-    );
-  }
 
   // Rendered width of every tick (post-scaleX, so getBoundingClientRect, not
   // the layout width), its opacity, and the rail's current reading position.
@@ -116,33 +108,20 @@ describe("section rail fisheye", function () {
   }
 
   before(async function () {
-    workspaceRestored = await $('button[aria-label="Hide sidebar"]')
-      .waitForExist({ timeout: 20_000 })
-      .catch(() => false);
-    if (!workspaceRestored) return;
-
-    const recents = await invoke("get_recent_workspaces", {});
-    const root = recents.ok && Array.isArray(recents.value) ? recents.value[0] : null;
-    ok(root, "no workspace root to seed the rail document into");
-
-    filePath = `${root}/${FILE_STEM}.md`;
-    const wrote = await invoke("write_file", { path: filePath, content: DOC });
-    ok(wrote.ok, `failed to seed ${filePath}: ${wrote.error}`);
-
-    await browser.execute(() => window.location.reload());
-    await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 20_000 });
+    workspace = createWorkspace("inkra-e2e-section-rail-", { [`${FILE_STEM}.md`]: DOC });
+    filePath = join(workspace, `${FILE_STEM}.md`);
+    await openWorkspace(workspace);
+    await waitForMount();
   });
 
-  beforeEach(function () {
-    if (!workspaceRestored) this.skip();
-  });
-
-  after(async function () {
-    if (filePath) await invoke("delete_entry", { path: filePath });
+  after(function () {
+    removeWorkspace(workspace);
   });
 
   it("opens the seeded document and renders one tick per heading", async function () {
-    const row = await $(`span*=Section rail fisheye check`);
+    // By path rather than by rendered label: the label is the document title
+    // under the default `sidebar-file-label` and the filename stem otherwise.
+    const row = await $(`[data-tree-path="${filePath}"]`);
     await row.waitForExist({ timeout: 20_000 });
     await row.click();
 

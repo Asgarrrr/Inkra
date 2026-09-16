@@ -2,72 +2,49 @@ import { ok, strictEqual } from "node:assert/strict";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { openWorkspace, waitForMount } from "../helpers/workspace.js";
+
+// The repo itself is the workspace: this spec needs a real tree with a folder
+// to expand and a file to open. `WorkspaceIgnore::load` walks with
+// `git_ignore(true)` and filters `.git` and `node_modules` explicitly, so
+// `target/` and `node_modules/` never enter the walk.
 const E2E_WORKSPACE = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const README = `${E2E_WORKSPACE}/README.md`;
 
-async function invoke(cmd, args) {
-  const result = await browser.executeAsync(
-    (cmdName, cmdArgs, done) => {
-      window.__TAURI_INTERNALS__
-        .invoke(cmdName, cmdArgs)
-        .then((value) => done({ ok: true, value }))
-        .catch((error) =>
-          done({ ok: false, error: error && error.message ? error.message : String(error) }),
-        );
-    },
-    cmd,
-    args,
-  );
-  if (!result.ok) throw new Error(`${cmd} failed: ${result.error}`);
-  return result.value;
-}
-
-async function setSetting(key, value) {
-  await invoke("set_setting", { key, value, scope: "global" });
-}
-
-async function waitForMount() {
-  await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 15_000 });
+/** A row of the Everything tree, addressed unambiguously.
+ *
+ *  `data-tree-path` alone is not enough: the flat Recents list carries the same
+ *  attribute and renders *above* the tree, so a bare `querySelector` returns a
+ *  `FileRow` — which has no pointer-down selection handler, being the row that
+ *  deliberately does not borrow the tree's. Whether README is in Recents
+ *  depends on file mtimes, so the bare selector is a coin toss. */
+function treeRow(path) {
+  return `[role="tree"][aria-label="File tree"] [data-tree-path="${path}"]`;
 }
 
 describe("sidebar composition refactor", function () {
   before(async function () {
-    const restored = await $('[data-sidebar-surface][data-workspace-open="true"]')
-      .waitForExist({ timeout: 3_000 })
-      .catch(() => false);
-    if (!restored) {
-      await invoke("open_workspace", { path: E2E_WORKSPACE });
-      await browser.refresh();
-    }
-    await $("[data-sidebar-surface]").waitForExist({ timeout: 15_000 });
-
-    // The e2e data dir persists settings between runs, so a sidebar collapsed
-    // by an earlier run would hide every row this spec drives. Settings are
-    // only picked up on reload, as in the other specs.
-    await setSetting("appearance.sidebar-visible", true);
-    await setSetting("appearance.sidebar-show-recents", true);
-    await browser.refresh();
+    await openWorkspace(E2E_WORKSPACE);
     await waitForMount();
   });
 
   describe("the Everything tree", function () {
     it("expands a folder on click", async function () {
-      const folder = await $(`[data-tree-path="${E2E_WORKSPACE}/apps"]`);
+      const folder = await $(treeRow(`${E2E_WORKSPACE}/apps`));
       await folder.waitForExist({ timeout: 10_000 });
       strictEqual(await folder.getAttribute("aria-expanded"), "false");
 
       await folder.click();
       await browser.waitUntil(
         async () =>
-          (await $(`[data-tree-path="${E2E_WORKSPACE}/apps"]`).getAttribute("aria-expanded")) ===
-          "true",
+          (await $(treeRow(`${E2E_WORKSPACE}/apps`)).getAttribute("aria-expanded")) === "true",
         { timeout: 10_000, timeoutMsg: "folder never expanded" },
       );
-      await $(`[data-tree-path="${E2E_WORKSPACE}/apps/desktop"]`).waitForExist({ timeout: 10_000 });
+      await $(treeRow(`${E2E_WORKSPACE}/apps/desktop`)).waitForExist({ timeout: 10_000 });
     });
 
     it("opens a file on click", async function () {
-      const file = await $(`[data-tree-path="${README}"]`);
+      const file = await $(treeRow(README));
       await file.waitForExist({ timeout: 10_000 });
       await file.click();
 
@@ -84,8 +61,8 @@ describe("sidebar composition refactor", function () {
       // Selection lives in FileTree and is applied on pointer-down. The split
       // moved the row markup into FileTreeRow; this checks the tree still owns
       // the click rather than the row handling it itself.
-      await browser.execute((path) => {
-        document.querySelector(`[data-tree-path="${path}"]`)?.dispatchEvent(
+      await browser.execute((selector) => {
+        document.querySelector(selector)?.dispatchEvent(
           new PointerEvent("pointerdown", {
             bubbles: true,
             cancelable: true,
@@ -94,16 +71,16 @@ describe("sidebar composition refactor", function () {
             isPrimary: true,
           }),
         );
-      }, README);
+      }, treeRow(README));
 
       await browser.waitUntil(
         async () =>
           browser.execute(
-            (path) =>
-              (
-                document.querySelector(`[data-tree-path="${path}"]`)?.getAttribute("class") ?? ""
-              ).includes("surface-selected"),
-            README,
+            (selector) =>
+              (document.querySelector(selector)?.getAttribute("class") ?? "").includes(
+                "surface-selected",
+              ),
+            treeRow(README),
           ),
         { timeout: 5_000, timeoutMsg: "cmd-click did not select the row" },
       );
@@ -134,7 +111,7 @@ describe("sidebar composition refactor", function () {
     // Guards the geometry the reverted footer-hoist broke: whatever renders
     // the footer, it must stay flush with the editor column.
     it("stays flush with the editor column", async function () {
-      await $(`[data-tree-path="${README}"]`).click();
+      await $(treeRow(README)).click();
       await $("[data-document-footer]").waitForExist({ timeout: 10_000 });
 
       const geometry = await browser.execute(() => {
