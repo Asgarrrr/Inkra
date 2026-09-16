@@ -1,11 +1,17 @@
 import { useActiveTab, useActiveTabId, useOpenTabs } from "@/hooks/use-tabs";
 import { pageKind } from "./page-kinds";
 import { pageKindView } from "./page-kinds/views";
+import type { Location } from "./page-kinds";
 import { EditorSearchOverlay } from "./editor-search-overlay";
 import { EditorNoticeBanner } from "./editor-notice-banner";
 
 interface EditorAreaProps {
   showFooter?: boolean;
+}
+
+function ActiveTabFooter({ location }: { location: Location }) {
+  const Footer = pageKindView(location).Footer;
+  return Footer ? <Footer location={location} /> : null;
 }
 
 function EditorArea({ showFooter = true }: EditorAreaProps) {
@@ -27,9 +33,7 @@ function EditorArea({ showFooter = true }: EditorAreaProps) {
           return <Component key={tab.id} location={tab.location} isActive={isActive} />;
         })}
       </div>
-      {showFooter && activeTab
-        ? pageKindView(activeTab.location).renderFooter?.(activeTab.location)
-        : null}
+      {showFooter && activeTab ? <ActiveTabFooter location={activeTab.location} /> : null}
       <EditorSearchOverlay />
       <EditorNoticeBanner />
     </div>

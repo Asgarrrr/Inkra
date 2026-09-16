@@ -31,10 +31,6 @@ import { ShowMoreButton, SidebarSection } from "./sidebar-section";
 import type { DirEntry } from "@/types/fs";
 
 interface SidebarNavigatorProps {
-  openFile?: (path: string) => Promise<void>;
-  enableContextMenus?: boolean;
-  onOpenFileComplete?: () => void;
-  className?: string;
   renamingPath: string | null;
   onRenamingPathChange: (path: string | null) => void;
   everythingCollapsed: boolean;
@@ -48,18 +44,13 @@ function getExtension(name: string): string {
 }
 
 export function SidebarNavigator({
-  openFile: openFileOverride,
-  enableContextMenus = true,
-  onOpenFileComplete,
-  className = "flex flex-col gap-4 py-2",
   renamingPath,
   onRenamingPathChange,
   everythingCollapsed,
   onEverythingCollapsedChange,
 }: SidebarNavigatorProps) {
   const { root } = useWorkspace();
-  const defaultOpenFile = useOpenFile();
-  const openFile = openFileOverride ?? defaultOpenFile;
+  const openFile = useOpenFile();
   const refreshDirectory = useRefreshDirectory();
   const fileLabelMode = useSetting("appearance.sidebar-file-label");
   const showRecents = useBooleanSetting("appearance.sidebar-show-recents");
@@ -73,18 +64,9 @@ export function SidebarNavigator({
   const pinnedEntries = usePinnedSidebarFiles(pinnedVisibleCount);
 
   const noopToggleDirectory = useCallback(async () => {}, []);
-  const openFileAndComplete = useCallback(
-    async (path: string) => {
-      await openFile(path);
-      onOpenFileComplete?.();
-    },
-    [onOpenFileComplete, openFile],
-  );
 
   const handleRenameFile = useCallback(
     (entry: DirEntry) => {
-      if (!enableContextMenus) return;
-
       void (async () => {
         const currentStem = getFileStem(entry.name);
         const nextValue = window.prompt("Rename file", currentStem);
@@ -109,19 +91,19 @@ export function SidebarNavigator({
         }
       })();
     },
-    [applyPathChange, enableContextMenus],
+    [applyPathChange],
   );
 
   const handleFileContextMenu = useCallback(
     (_event: MouseEvent<HTMLElement>, entry: DirEntry) => {
-      if (!enableContextMenus || !root) return;
+      if (!root) return;
       const parent = getParentDir(entry.path);
       const relative = getRelativePath(entry.path, root);
 
       void showFileContextMenu({
         isPinned: pinnedPaths.includes(entry.path),
         onOpen: () => {
-          void openFileAndComplete(entry.path);
+          void openFile(entry.path);
         },
         onOpenInNewTab: () => {
           void openFileInNewTabAction(entry.path).catch((error: unknown) => {
@@ -186,9 +168,8 @@ export function SidebarNavigator({
       });
     },
     [
-      enableContextMenus,
       handleRenameFile,
-      openFileAndComplete,
+      openFile,
       pinnedPaths,
       refreshDirectory,
       removePinnedFile,
@@ -202,7 +183,7 @@ export function SidebarNavigator({
   }
 
   return (
-    <div className={className}>
+    <div className="flex flex-col gap-4 py-2">
       {pinnedEntries.files.length > 0 && (
         <SidebarSection title="Pinned">
           <div role="tree" aria-label="Pinned files" className="flex flex-col gap-px">
@@ -215,8 +196,8 @@ export function SidebarNavigator({
                 isRenaming={false}
                 isSelected={false}
                 onToggleDir={noopToggleDirectory}
-                onOpenFile={openFileAndComplete}
-                onContextMenu={enableContextMenus ? handleFileContextMenu : undefined}
+                onOpenFile={openFile}
+                onContextMenu={handleFileContextMenu}
                 fileLabelMode={fileLabelMode}
               />
             ))}
@@ -241,8 +222,8 @@ export function SidebarNavigator({
                 isRenaming={false}
                 isSelected={false}
                 onToggleDir={noopToggleDirectory}
-                onOpenFile={openFileAndComplete}
-                onContextMenu={enableContextMenus ? handleFileContextMenu : undefined}
+                onOpenFile={openFile}
+                onContextMenu={handleFileContextMenu}
                 fileLabelMode={fileLabelMode}
               />
             ))}
@@ -262,8 +243,6 @@ export function SidebarNavigator({
       >
         <FileTree
           rootPath={root}
-          openFile={openFileAndComplete}
-          enableContextMenus={enableContextMenus}
           renamingPath={renamingPath}
           onRenamingPathChange={onRenamingPathChange}
         />

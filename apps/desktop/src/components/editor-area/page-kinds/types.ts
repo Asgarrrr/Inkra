@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 
 /**
  * Session-serialized location payload. The `kind` tag plus a free-form bag of
@@ -82,7 +82,7 @@ export interface PageKindView<L extends { kind: string } = { kind: string }> {
   /** React renderer for the tab body. */
   Component: ComponentType<{ location: L; isActive: boolean }>;
   /** Optional chrome rendered below the active tab body. */
-  renderFooter?: (location: L) => ReactNode;
+  Footer?: ComponentType<{ location: L }>;
 }
 
 /**

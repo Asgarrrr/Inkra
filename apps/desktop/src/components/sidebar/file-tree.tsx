@@ -35,8 +35,6 @@ import type { DirEntry } from "@/types/fs";
 
 interface FileTreeProps {
   rootPath: string;
-  openFile?: (path: string) => Promise<void>;
-  enableContextMenus?: boolean;
   renamingPath: string | null;
   onRenamingPathChange: (path: string | null) => void;
 }
@@ -47,18 +45,11 @@ function getExtension(name: string): string {
   return name.slice(dot);
 }
 
-export function FileTree({
-  rootPath,
-  openFile: openFileOverride,
-  enableContextMenus = true,
-  renamingPath,
-  onRenamingPathChange,
-}: FileTreeProps) {
+export function FileTree({ rootPath, renamingPath, onRenamingPathChange }: FileTreeProps) {
   const directoryCache = useDirectoryCache();
   const expandedDirs = useExpandedDirs();
   const toggleDirectory = useToggleDirectory();
-  const defaultOpenFile = useOpenFile();
-  const openFile = openFileOverride ?? defaultOpenFile;
+  const openFile = useOpenFile();
   const refreshDirectory = useRefreshDirectory();
   const invalidatePath = useInvalidatePath();
   const { applyPathChange, moveEntry } = useMoveEntry();
@@ -250,8 +241,6 @@ export function FileTree({
 
   const handleContextMenu = useCallback(
     (_event: MouseEvent<HTMLElement>, entry: DirEntry) => {
-      if (!enableContextMenus) return;
-
       // If multiple items are selected and the right-clicked item is in the selection,
       // show the bulk menu
       if (selectedPaths.size >= 2 && selectedPaths.has(entry.path)) {
@@ -270,7 +259,6 @@ export function FileTree({
     },
     [
       clearSelection,
-      enableContextMenus,
       handleBulkContextMenu,
       handleFileContextMenu,
       handleFolderContextMenu,
@@ -308,7 +296,7 @@ export function FileTree({
           onToggleDir={toggleDirectory}
           onOpenFile={openFile}
           onClick={onRowClick}
-          onContextMenu={enableContextMenus ? handleContextMenu : undefined}
+          onContextMenu={handleContextMenu}
           onPointerDown={onRowPointerDown}
           onRenameSubmit={handleRenameSubmit}
           onRenameCancel={handleRenameCancel}

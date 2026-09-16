@@ -17,20 +17,23 @@ import type { PageKindView } from "./types";
  * the stores and produced import cycles. Register a kind's view here alongside
  * its behavior module.
  */
-// `file` needs a small adapter because EditorPane is keyed by `path`, not by
-// the location object; `launcher`/`settings` reference their components
-// directly (extra props are ignored), keeping this file to a single component
-// definition.
-// Page-kind view registry: exports the pageKindView resolver alongside the file-tab adapter component; not a Fast-Refresh component surface.
+// `file` needs two small adapters because EditorPane and DocumentFooter are
+// keyed by `path`, not by the location object; `launcher`/`settings` reference
+// their components directly (extra props are ignored).
+// Page-kind view registry: exports the pageKindView resolver alongside the file-tab adapter components; not a Fast-Refresh component surface.
 // eslint-disable-next-line react-doctor/only-export-components
 const FileTabBody = ({ location, isActive }: { location: FileLocation; isActive: boolean }) => (
   <EditorPane path={location.path} isActive={isActive} />
 );
 
+const FileTabFooter = ({ location }: { location: FileLocation }) => (
+  <DocumentFooter filePath={location.path} />
+);
+
 const views = {
   file: {
     Component: FileTabBody,
-    renderFooter: (l) => <DocumentFooter filePath={l.path} />,
+    Footer: FileTabFooter,
   } satisfies PageKindView<FileLocation>,
   launcher: {
     Component: NewTabPage,
