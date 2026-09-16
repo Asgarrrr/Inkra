@@ -1,16 +1,32 @@
-import { renderMermaidSVG } from "beautiful-mermaid";
 import { LruCache } from "@/lib/lru";
+import { lazyModule } from "@/lib/lazy-module";
 
 const svgCache = new LruCache<string>(50);
+
+// beautiful-mermaid statically imports elkjs, whose minified layout worker is
+// ~1.5 MB — on its own the largest thing in the bundle, and useless until a
+// document actually contains a mermaid fence. Loading it on demand keeps it off
+// the startup path; `MermaidWidget` has a fixed `estimatedHeight`, so a diagram
+// arriving a beat late cannot shift the heightmap.
+const mermaidModule = lazyModule(() => import("beautiful-mermaid"));
 
 export interface RenderResult {
   svg: string;
   error?: undefined;
+  pending?: undefined;
 }
 
 export interface RenderError {
   svg?: undefined;
   error: string;
+  pending?: undefined;
+}
+
+/** The renderer is not in memory yet. Call `ensureMermaid()`, then re-render. */
+export interface RenderPending {
+  svg?: undefined;
+  error?: undefined;
+  pending: true;
 }
 
 // beautiful-mermaid resolves colours from CSS custom properties at paint time,
@@ -37,21 +53,31 @@ function sanitizeSvg(svg: string): string {
     .replace(/\s+on[a-z]+\s*=\s*[^\s>]+/gi, "");
 }
 
-// Synchronous on purpose: beautiful-mermaid is itself synchronous and the
-// cache makes repeat renders O(map lookup). Calling this from `toDOM` lets the
-// widget paint with its rendered SVG in the same frame the wrapper enters the
-// DOM — there's no async gap that can leave the user stuck on a placeholder.
-export function renderMermaid(source: string): RenderResult | RenderError {
+export function describeRenderError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** Loads the renderer if it is not in memory. Rejects if the import fails. */
+export function ensureMermaid(): Promise<void> {
+  return mermaidModule.load().then(() => undefined);
+}
+
+// Stays synchronous, so `toDOM` can paint a cached or already-loadable diagram
+// in the frame the wrapper enters the DOM. Only the first call in a session,
+// before `ensureMermaid()` resolves, comes back `pending`.
+export function renderMermaid(source: string): RenderResult | RenderError | RenderPending {
   const cached = svgCache.get(source);
   if (cached !== undefined) return { svg: cached };
 
+  const mermaid = mermaidModule.peek();
+  if (!mermaid) return { pending: true };
+
   try {
-    const svg = sanitizeSvg(renderMermaidSVG(source, RENDER_OPTIONS));
+    const svg = sanitizeSvg(mermaid.renderMermaidSVG(source, RENDER_OPTIONS));
     svgCache.set(source, svg);
     return { svg };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { error: message };
+    return { error: describeRenderError(err) };
   }
 }
 

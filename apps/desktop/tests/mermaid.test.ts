@@ -9,8 +9,13 @@ vi.mock("beautiful-mermaid", () => {
 });
 
 // Import after mock setup
-const { renderMermaid, clearMermaidCache } =
+const { renderMermaid, clearMermaidCache, ensureMermaid } =
   await import("../src/components/editor-area/mermaid-renderer");
+
+// The renderer is loaded on demand, so every test below that expects SVG has to
+// warm it first. `ensureMermaid` memoises, so this is one dynamic import for the
+// whole file; the cold path is covered separately, on a freshly reset module.
+await ensureMermaid();
 
 describe("renderMermaid", () => {
   beforeEach(() => {
@@ -100,6 +105,104 @@ describe("renderMermaid", () => {
     expect(result.svg).not.toContain("evil()");
     expect(result.svg).not.toContain("stealCookies");
     expect(result.svg).toContain("<rect");
+  });
+});
+
+// `lazyModule` memoises per module instance, so the module above is warm for
+// the rest of the file. `vi.resetModules()` plus a re-import is the only way
+// back to a cold renderer — `clearMermaidCache()` clears SVGs, not module state.
+describe("renderMermaid before the renderer is loaded", () => {
+  async function coldRenderer() {
+    vi.resetModules();
+    return await import("../src/components/editor-area/mermaid-renderer");
+  }
+
+  test("reports pending rather than an error or an empty SVG", async () => {
+    const { renderMermaid } = await coldRenderer();
+    const result = renderMermaid("graph TD;\n  A-->B;");
+    expect(result.pending).toBe(true);
+    expect(result.svg).toBeUndefined();
+    expect(result.error).toBeUndefined();
+  });
+
+  test("renders synchronously once ensureMermaid has resolved", async () => {
+    const { renderMermaid, ensureMermaid: ensure } = await coldRenderer();
+    expect(renderMermaid("graph TD;\n  A-->B;").pending).toBe(true);
+
+    await ensure();
+
+    const result = renderMermaid("graph TD;\n  A-->B;");
+    expect(result.pending).toBeUndefined();
+    expect(result.svg).toContain("<svg");
+  });
+});
+
+const { lazyModule } = await import("../src/lib/lazy-module");
+
+describe("lazyModule", () => {
+  test("peek is undefined until load resolves, then returns the module", async () => {
+    const lazy = lazyModule(async () => ({ value: 42 }));
+    expect(lazy.peek()).toBeUndefined();
+    await lazy.load();
+    expect(lazy.peek()).toEqual({ value: 42 });
+  });
+
+  test("loads once for concurrent callers", async () => {
+    let calls = 0;
+    const lazy = lazyModule(async () => {
+      calls += 1;
+      return { value: calls };
+    });
+    await Promise.all([lazy.load(), lazy.load(), lazy.load()]);
+    expect(calls).toBe(1);
+  });
+
+  test("a failed import is retried rather than memoised as rejected", async () => {
+    let attempt = 0;
+    const lazy = lazyModule(async () => {
+      attempt += 1;
+      if (attempt === 1) throw new Error("network blip");
+      return { value: "second try" };
+    });
+
+    await expect(lazy.load()).rejects.toThrow("network blip");
+    expect(lazy.peek()).toBeUndefined();
+
+    await expect(lazy.load()).resolves.toEqual({ value: "second try" });
+    expect(lazy.peek()).toEqual({ value: "second try" });
+    expect(attempt).toBe(2);
+  });
+});
+
+const { isDeferredRenderStale } = await import("../src/components/editor-area/mermaid-decorations");
+
+// Guards the one way deferring the render can lose user input: a callback that
+// captured the pre-edit fence writing it back through `updateSource`, which
+// cancels the nested editor's in-flight debounce.
+describe("isDeferredRenderStale", () => {
+  const handle = { updateSource() {}, destroy() {} };
+
+  test("fresh when the entry is still mounted on the fence the callback captured", () => {
+    const entry = { handle, fenceText: "```mermaid\ngraph TD;\n```" };
+    expect(isDeferredRenderStale(entry, entry, entry.fenceText)).toBe(false);
+  });
+
+  test("stale after updateDOM moved the entry to a different fence", () => {
+    const entry = { handle, fenceText: "```mermaid\ngraph TD;\n```" };
+    const captured = entry.fenceText;
+    entry.fenceText = "```mermaid\ngraph TD;\n  A-->B;\n```";
+    expect(isDeferredRenderStale(entry, entry, captured)).toBe(true);
+  });
+
+  test("stale after the wrapper was destroyed and its entry dropped", () => {
+    const entry = { handle, fenceText: "```mermaid\ngraph TD;\n```" };
+    expect(isDeferredRenderStale(undefined, entry, entry.fenceText)).toBe(true);
+  });
+
+  test("stale when the wrapper was rebuilt with a new entry for the same text", () => {
+    const entry = { handle, fenceText: "```mermaid\ngraph TD;\n```" };
+    const replacement = { handle, fenceText: entry.fenceText };
+    expect(isDeferredRenderStale(replacement, entry, entry.fenceText)).toBe(true);
   });
 });
 
