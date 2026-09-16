@@ -90,7 +90,7 @@ The parse runs under a time budget, so the heights can still settle after the sc
 - **Document identity.** `pos` is an offset into the document the jump measured. A tab swap or a watcher reload replaces that document without necessarily moving `scrollTop` — the browser only re-clamps when the incoming document is shorter — and the reload branch of `use-prosemark-editor.ts` never re-applies a pending target, so nothing downstream would repair a correction aimed at the outgoing document. `view.state.doc` is an immutable `Text`, so reference identity is the exact test; it is checked in the `read` and again in the `write`.
 - **A one-pixel dead band.** `scrollTop` is fractional on HiDPI and `scrollTo` rounds to the physical pixel, so exact equality between the wanted offset and the current one is never reached and both passes would always be spent. CodeMirror draws the same band (`diff > 1 || diff < -1`).
 
-`section-rail.tsx` still calls `scrollPosToSafeTop` directly, with neither the parse nor the correction.
+`section-rail/index.tsx` still calls `scrollPosToSafeTop` directly, with neither the parse nor the correction.
 
 ## Block widgets: pick the decoration shape
 

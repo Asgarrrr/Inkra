@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { EditorView } from "@codemirror/view";
 import type { DocumentHeading } from "@/hooks/use-document-headings";
 import { EDITOR_SAFE_SCROLL_MARGIN } from "../editor-scroll-container";
@@ -60,6 +60,22 @@ export function useActiveHeadings(
   // a keystroke re-measures instead of tearing the listeners down and back up.
   const headingsRef = useRef(headings);
   const resyncRef = useRef<(() => void) | null>(null);
+
+  // Declared before the measuring effect below, and a layout effect for the
+  // same reason it is first: when the view and the headings change in one
+  // commit, React runs this component's layout effects in hook order, so the
+  // ref has to be refreshed before anything measures the new view. A passive
+  // effect here would run after, and the measurement would pair the new view's
+  // geometry with the previous file's headings for a frame.
+  useLayoutEffect(() => {
+    // Equal on the mount pass, where the effect below measures this exact
+    // array on its own.
+    if (headingsRef.current === headings) return;
+    headingsRef.current = headings;
+    // Null while the effect below is between a cleanup and its re-run, which
+    // is precisely the commit where it is about to measure from scratch.
+    resyncRef.current?.();
+  }, [headings]);
 
   // A layout effect, not a passive one: `--rail-pos` is seeded to 0 inline, so
   // measuring after paint shows one frame of the first tick at full width
@@ -130,14 +146,6 @@ export function useActiveHeadings(
       window.removeEventListener("resize", resync);
     };
   }, [view, scrollContainerRef, railRef]);
-
-  useEffect(() => {
-    // Equal on the mount pass, where the layout effect has already measured
-    // this exact array.
-    if (headingsRef.current === headings) return;
-    headingsRef.current = headings;
-    resyncRef.current?.();
-  }, [headings]);
 
   // Without a live editor there is no active heading. Resolve this during
   // render instead of via an effect so the rail never paints a stale tick
