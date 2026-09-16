@@ -1,8 +1,13 @@
 /* No `will-change` anywhere in this file, deliberately. The rail is mounted for
    the whole life of a note with five or more headings, so a hint here is a
-   permanent layer, not a hint: one per heading on the ticks below. Nothing to
-   win either — these elements are 20x1px, and the ScrollFade mask above them
-   already forces the group through a compositing buffer. */
+   permanent layer, not a hint: one per heading on the ticks below.
+
+   Nothing to win either, and the reason is the falloff's own mechanism rather
+   than anything about layers: `--rail-pos` is an inherited custom property read
+   through calc() by every tick, so each write recalculates the computed style of
+   the whole subtree on the main thread. `will-change` cannot skip a style recalc
+   or the paint invalidation behind it. See
+   https://web.dev/blog/at-property-performance. */
 .section-rail-ticks {
   transform-origin: right center;
   transform: translateY(-50%) translateX(0) scale(1);
