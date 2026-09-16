@@ -10,10 +10,17 @@ import { mark } from "./lib/startup-metrics";
 // (marked inline in index.html) to here is that cost.
 mark("script-eval");
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+mark("react-root-created");
+
+root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
   </React.StrictMode>,
 );
+// `render` schedules rather than renders, so this closes the bracket on the
+// call itself. Anything between here and `app-render` is React deciding when
+// to work, not our code running.
+mark("render-scheduled");
