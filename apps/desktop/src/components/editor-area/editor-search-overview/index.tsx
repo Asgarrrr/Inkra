@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collectMatches, jumpToMatch, useEditorSearchStore } from "./editor-search-store";
+import { collectMatches, jumpToMatch, useEditorSearchStore } from "../editor-search-store";
 
 interface EditorSearchOverviewProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;

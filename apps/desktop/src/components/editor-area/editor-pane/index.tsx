@@ -1,9 +1,9 @@
 import type { EditorView } from "@codemirror/view";
-import { ProseMarkEditor } from "./prosemark-editor";
-import { FrontmatterPanel } from "./frontmatter-panel";
-import { EditorScrollContainer } from "./editor-scroll-container";
-import { EditorSearchOverview } from "./editor-search-overview";
-import { SectionRail } from "./section-rail";
+import { ProseMarkEditor } from "../prosemark-editor";
+import { FrontmatterPanel } from "../frontmatter-panel";
+import { EditorScrollContainer } from "../editor-scroll-container";
+import { EditorSearchOverview } from "../editor-search-overview";
+import { SectionRail } from "../section-rail";
 import { useCloseEditorSearchWhenInactive } from "./use-close-editor-search-when-inactive";
 import { useRegisterEditorView } from "./use-register-editor-view";
 import { useIsFileLoading } from "@/hooks/use-tabs";

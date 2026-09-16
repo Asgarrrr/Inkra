@@ -61,7 +61,7 @@ If a second component needs the hook, move it to `hooks/` and switch both consum
 #### Naming and file conventions
 
 - **Use kebab-case for all filenames**, including hooks: `use-editor-view.ts`, not `useEditorView.ts`. This matches the component file convention (`editor-pane.tsx`, `file-tree-node.tsx`).
-- Place the hook file as a sibling inside the component's directory (e.g., `components/editor-area/use-editor-view.ts` alongside `editor-pane.tsx`).
+- Place the hook file as a sibling inside the component's directory (e.g., `components/editor-area/editor-pane/use-register-editor-view.ts` alongside that directory's `index.tsx`).
 - If a component is a single file (not a directory), create a directory for it first — move the component to `index.tsx` — then add the hook alongside it.
 
 ## Side Effects — Act, Don't React

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-import { readingPosition } from "../src/components/editor-area/use-active-headings";
+import { readingPosition } from "../src/components/editor-area/section-rail/use-active-headings";
 
 // Heading tops are viewport y coordinates, so they shrink as the doc scrolls
 // up. The threshold is a fixed line near the top of the scroller.

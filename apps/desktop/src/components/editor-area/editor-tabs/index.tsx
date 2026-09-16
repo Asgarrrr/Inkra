@@ -19,8 +19,8 @@ import { ScrollFade } from "@/components/scroll-fade";
 import { useScrollActiveTabIntoView } from "@/hooks/use-scroll-active-tab-into-view";
 import { useEditorStore } from "@/stores/editor-store";
 import { getRelativePath } from "@/lib/paths";
-import { pageKind } from "./page-kinds";
-import { buildTabMenuItemsSpec, showNativeContextMenu } from "./editor-context-menu";
+import { pageKind } from "../page-kinds";
+import { buildTabMenuItemsSpec, showNativeContextMenu } from "../editor-context-menu";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import { revealPathInSidebar } from "@/lib/reveal-in-sidebar";
 
