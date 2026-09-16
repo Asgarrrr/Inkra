@@ -131,7 +131,9 @@ describe("sidebar composition refactor", function () {
   });
 
   describe("the document footer", function () {
-    it("stays flush with the editor column after being hoisted out of EditorArea", async function () {
+    // Guards the geometry the reverted footer-hoist broke: whatever renders
+    // the footer, it must stay flush with the editor column.
+    it("stays flush with the editor column", async function () {
       await $(`[data-tree-path="${README}"]`).click();
       await $("[data-document-footer]").waitForExist({ timeout: 10_000 });
 

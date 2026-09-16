@@ -431,24 +431,26 @@ describe("Content search palette", function () {
     seedWorkspace();
     await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 20_000 });
 
-    const open = await $('[data-sidebar-surface][data-workspace-open="true"]')
-      .waitForExist({ timeout: 3_000 })
-      .catch(() => false);
-    if (!open) {
-      // The raw IPC is the Rust half only; the frontend store keeps no root.
-      // Startup restores the most recent workspace, which `open_workspace`
-      // has just written — so a reload is what actually opens it here.
-      await browser.executeAsync((path, done) => {
-        window.__TAURI_INTERNALS__
-          .invoke("open_workspace", { path })
-          .then(() => done(null))
-          .catch((e) => done(e && e.message ? e.message : String(e)));
-      }, WORKSPACE);
-      await browser.execute(() => window.location.reload());
-      await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({
-        timeout: 20_000,
-      });
-    }
+    // Always open this suite's own workspace, never inherit whichever one
+    // startup restored. Testing `data-workspace-open` and skipping on "true"
+    // silently accepted someone else's workspace: the other specs seed
+    // `recent_workspaces.json` with the repo, so this suite would run against
+    // the repo and report "no palette row for big-images-tables.md" — 6
+    // passing, 7 failing — with nothing in the failure naming the real cause.
+    //
+    // The raw IPC is the Rust half only; the frontend store keeps no root.
+    // Startup restores the most recent workspace, which `open_workspace` has
+    // just written — so a reload is what actually opens it here.
+    await browser.executeAsync((path, done) => {
+      window.__TAURI_INTERNALS__
+        .invoke("open_workspace", { path })
+        .then(() => done(null))
+        .catch((e) => done(e && e.message ? e.message : String(e)));
+    }, WORKSPACE);
+    await browser.execute(() => window.location.reload());
+    await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({
+      timeout: 20_000,
+    });
     await browser.executeAsync((done) => {
       window.__TAURI_INTERNALS__
         .invoke("index_workspace")
