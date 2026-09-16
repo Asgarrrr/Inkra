@@ -2,7 +2,7 @@ import type { InlineContext, MarkdownConfig } from "@lezer/markdown";
 import { markdownTags } from "../markdown/tags";
 import { Decoration, WidgetType } from "@codemirror/view";
 import { foldableSyntaxFacet } from "./core";
-import * as emoji from "node-emoji";
+import { getEmoji } from "@/lib/emoji";
 
 const emojiDelimiter = { resolve: "Emoji", mark: "EmojiMark" };
 
@@ -58,7 +58,7 @@ export const emojiExtension = foldableSyntaxFacet.of({
   nodePath: "Emoji",
   buildDecorations: (state, node) => {
     const emojiName = state.doc.sliceString(node.from + 1, node.to - 1);
-    const emoji_ = emoji.get(emojiName);
+    const emoji_ = getEmoji(emojiName);
     if (!emoji_) {
       return;
     }
