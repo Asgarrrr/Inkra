@@ -4,6 +4,8 @@ export interface DirEntry {
   is_dir: boolean;
   is_markdown: boolean;
   modified_at: number;
+  /** Creation time in seconds; falls back to `modified_at` where the filesystem has none. */
+  created_at: number;
   title: string | null;
 }
 

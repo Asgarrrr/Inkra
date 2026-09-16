@@ -71,7 +71,7 @@ function HomePage() {
             <AppleGlyph size={20} />
             <span>Download for MacOS</span>
           </a>
-          <span className="alpha-pill">Alpha</span>
+          <span className="beta-pill">Beta</span>
           <span className="version">v{__INKRA_VERSION__}</span>
         </div>
 

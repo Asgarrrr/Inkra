@@ -150,12 +150,52 @@ describe("workspace-store", () => {
     expect(useWorkspaceStore.getState().directoryCache.get("/workspace")).toEqual([]);
   });
 
+  test("updateEntryModifiedAt patches one cached file and leaves other folders untouched", () => {
+    const entry = (path: string, modified_at: number) => ({
+      name: path.slice(path.lastIndexOf("/") + 1),
+      path,
+      is_dir: false,
+      is_markdown: true,
+      modified_at,
+      created_at: 0,
+      title: null,
+    });
+    const other = [entry("/other/z.md", 1)];
+    const before = new Map([
+      ["/test", [entry("/test/a.md", 1), entry("/test/b.md", 1)]],
+      ["/other", other],
+    ]);
+    useWorkspaceStore.setState({ directoryCache: before });
+
+    useWorkspaceStore.getState().updateEntryModifiedAt("/test/b.md", 5);
+
+    const after = useWorkspaceStore.getState().directoryCache;
+    expect(after).not.toBe(before);
+    expect(after.get("/test")?.map((e) => e.modified_at)).toEqual([1, 5]);
+    expect(after.get("/other")).toBe(other);
+
+    // Unchanged timestamp and unknown paths are no-ops that keep the same Map.
+    useWorkspaceStore.getState().updateEntryModifiedAt("/test/b.md", 5);
+    useWorkspaceStore.getState().updateEntryModifiedAt("/missing/c.md", 9);
+    expect(useWorkspaceStore.getState().directoryCache).toBe(after);
+  });
+
   test("invalidatePath removes from cache", () => {
     useWorkspaceStore.setState({
       directoryCache: new Map([
         [
           "/test",
-          [{ name: "a.md", path: "/test/a.md", is_dir: false, is_markdown: true, modified_at: 0 }],
+          [
+            {
+              name: "a.md",
+              path: "/test/a.md",
+              is_dir: false,
+              is_markdown: true,
+              modified_at: 0,
+              created_at: 0,
+              title: null,
+            },
+          ],
         ],
       ]),
     });

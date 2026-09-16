@@ -14,11 +14,6 @@
   pointer-events: none;
 }
 
-.section-rail-tick {
-  transform-origin: right center;
-  will-change: transform;
-}
-
 .section-rail-popover {
   transform-origin: right center;
   transform: translateY(-50%) translateX(-4px) scale(1);

@@ -66,7 +66,7 @@ function FrontmatterRow({
         ref={isPlaceholder ? focusOnMount : undefined}
         placeholder="key"
         spellCheck={false}
-        className="w-36 shrink-0 bg-transparent text-[13px] leading-[1.15] text-[var(--text-muted)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
+        className="w-[clamp(5rem,25%,9rem)] shrink-0 bg-transparent text-[13px] leading-[1.15] text-[var(--text-muted)] outline-none placeholder:text-[var(--text-muted)] placeholder:opacity-70"
       />
 
       <input

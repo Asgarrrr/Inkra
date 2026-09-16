@@ -4,6 +4,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 import { toggleSidebar } from "@/hooks/use-sidebar";
 import { getWorkspaceChromeMode } from "@/lib/compact-mode";
+import { closeWindow } from "@/lib/tauri";
 
 function isEditableTargetFocused(): boolean {
   const active = document.activeElement;
@@ -62,10 +63,19 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Cmd+W — close current tab
+      // Cmd+W — close current tab. Once the launcher is the only tab left
+      // there is nothing to close (closing it would just recreate it), so
+      // close the window instead; Rust turns that into a hide for the main
+      // window (see `attach_window_handlers`). Any other tab, including
+      // Settings, closes like a file tab.
       if (mod && e.key === "w") {
         if (isCompactFileMode) return;
         e.preventDefault();
+        const onlyLauncherLeft = tabs.every((tab) => tab.location.kind === "launcher");
+        if (onlyLauncherLeft && tabs.length <= 1) {
+          void closeWindow();
+          return;
+        }
         if (activeTabId) closeActiveTab();
         return;
       }

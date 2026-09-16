@@ -2,9 +2,11 @@ import { Menu } from "@tauri-apps/api/menu/menu";
 import { CheckMenuItem } from "@tauri-apps/api/menu/checkMenuItem";
 import { MenuItem } from "@tauri-apps/api/menu/menuItem";
 import { PredefinedMenuItem } from "@tauri-apps/api/menu/predefinedMenuItem";
+import { Submenu } from "@tauri-apps/api/menu/submenu";
 import { detectPlatform, openFolderLabelForPlatform, type Platform } from "./context-menu-utils";
+import { SIDEBAR_SORT_MODES, type SidebarSortMode } from "./sidebar-sort";
 
-export type SidebarSurfaceToggleId = "toggle-search" | "toggle-recents";
+export type SidebarSurfaceToggleId = "toggle-search" | "toggle-recents" | "folders-first";
 export type SidebarSurfaceActionId =
   | "new-file"
   | "new-folder"
@@ -12,10 +14,14 @@ export type SidebarSurfaceActionId =
   | "open-file-manager";
 
 interface SidebarSurfaceWorkspaceActions {
+  sortMode: SidebarSortMode;
+  foldersFirst: boolean;
   onNewFile: () => void;
   onNewFolder: () => void;
   onOpenInTerminal: () => void;
   onOpenInFileManager: () => void;
+  onSortModeChange: (mode: SidebarSortMode) => void;
+  onFoldersFirstChange: (foldersFirst: boolean) => void;
 }
 
 export interface SidebarSurfaceMenuState {
@@ -26,7 +32,7 @@ export interface SidebarSurfaceMenuState {
   onToggleRecents: (visible: boolean) => void;
 }
 
-type SidebarSurfaceMenuEntry =
+export type SidebarSurfaceMenuEntry =
   | {
       kind: "item";
       id: SidebarSurfaceActionId;
@@ -35,12 +41,45 @@ type SidebarSurfaceMenuEntry =
     }
   | {
       kind: "check";
-      id: SidebarSurfaceToggleId;
+      id: SidebarSurfaceToggleId | SidebarSortMode;
       text: string;
       checked: boolean;
       action: () => void;
     }
+  | { kind: "submenu"; id: "sort"; text: string; items: SidebarSurfaceMenuEntry[] }
   | { kind: "separator" };
+
+/**
+ * The "Sort by" submenu: one check item per sort mode, exactly one checked,
+ * with a separator between the name / modified / created groups, then the
+ * independent "Folders first" toggle at the bottom.
+ */
+function buildSortSubmenu(actions: SidebarSurfaceWorkspaceActions): SidebarSurfaceMenuEntry {
+  const items: SidebarSurfaceMenuEntry[] = [];
+  let lastGroup: string | null = null;
+  for (const mode of SIDEBAR_SORT_MODES) {
+    if (lastGroup !== null && mode.group !== lastGroup) items.push({ kind: "separator" });
+    lastGroup = mode.group;
+    items.push({
+      kind: "check",
+      id: mode.id,
+      text: mode.text,
+      checked: mode.id === actions.sortMode,
+      action: () => actions.onSortModeChange(mode.id),
+    });
+  }
+  items.push(
+    { kind: "separator" },
+    {
+      kind: "check",
+      id: "folders-first",
+      text: "Folders first",
+      checked: actions.foldersFirst,
+      action: () => actions.onFoldersFirstChange(!actions.foldersFirst),
+    },
+  );
+  return { kind: "submenu", id: "sort", text: "Sort by", items };
+}
 
 /**
  * Build the sidebar surface menu shown on empty space and section headers.
@@ -97,21 +136,23 @@ export function buildSidebarSurfaceMenuItemsSpec(
       action: state.workspaceActions.onOpenInFileManager,
     },
     { kind: "separator" },
+    buildSortSubmenu(state.workspaceActions),
+    { kind: "separator" },
     ...toggles,
   ];
 }
 
-/**
- * Build a Tauri native menu of check items and pop it up at the cursor.
- * The menu dismisses through the OS, not via JS.
- */
-export async function showSidebarSurfaceContextMenu(state: SidebarSurfaceMenuState): Promise<void> {
-  const spec = buildSidebarSurfaceMenuItemsSpec(state);
-
-  const items = await Promise.all(
-    spec.map((entry) => {
+async function buildMenuItems(
+  spec: SidebarSurfaceMenuEntry[],
+): Promise<Array<MenuItem | CheckMenuItem | PredefinedMenuItem | Submenu>> {
+  return Promise.all(
+    spec.map(async (entry) => {
       if (entry.kind === "separator") {
         return PredefinedMenuItem.new({ item: "Separator" });
+      }
+      if (entry.kind === "submenu") {
+        const items = await buildMenuItems(entry.items);
+        return Submenu.new({ id: entry.id, text: entry.text, items });
       }
       if (entry.kind === "check") {
         return CheckMenuItem.new({
@@ -124,7 +165,14 @@ export async function showSidebarSurfaceContextMenu(state: SidebarSurfaceMenuSta
       return MenuItem.new({ id: entry.id, text: entry.text, action: entry.action });
     }),
   );
+}
 
+/**
+ * Build a Tauri native menu of check items and pop it up at the cursor.
+ * The menu dismisses through the OS, not via JS.
+ */
+export async function showSidebarSurfaceContextMenu(state: SidebarSurfaceMenuState): Promise<void> {
+  const items = await buildMenuItems(buildSidebarSurfaceMenuItemsSpec(state));
   const menu = await Menu.new({ items });
   await menu.popup();
 }

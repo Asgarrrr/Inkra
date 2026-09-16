@@ -6,6 +6,7 @@ import * as editorApi from "./editor-api";
 import * as tauri from "@/lib/tauri";
 import { cancelSave, isSaveInFlight } from "@/lib/save";
 import { isWorkspaceEventCurrent, type WorkspaceIdentity } from "@/lib/workspace-events";
+import type { WriteResult } from "@/types/fs";
 
 interface FileChangePayload {
   path: string;
@@ -58,8 +59,10 @@ export function useFileWatcher() {
       }
     });
 
-    const unlistenSidebarMetadata = listen("sidebar:metadata-changed", () => {
-      useWorkspaceStore.getState().bumpSidebarMetadataVersion();
+    const unlistenSidebarMetadata = listen<WriteResult>("sidebar:metadata-changed", (event) => {
+      const { bumpSidebarMetadataVersion, updateEntryModifiedAt } = useWorkspaceStore.getState();
+      bumpSidebarMetadataVersion();
+      updateEntryModifiedAt(event.payload.path, event.payload.modified_at);
     });
 
     const unlistenSettings = listen<WorkspaceIdentity>("settings:changed", (event) => {
