@@ -15,12 +15,14 @@
   transition:
     transform 180ms ease,
     opacity 180ms ease;
+  /* The container is never a target itself; only the ticks inside it are, and
+     they opt back in below. */
+  pointer-events: none;
 }
 
 .section-rail-ticks[data-open="true"] {
   transform: translateY(-50%) translateX(-8px) scale(1.05);
   opacity: 0;
-  pointer-events: none;
 }
 
 /* Fisheye falloff around the reading position. Two asymmetric slopes, each
