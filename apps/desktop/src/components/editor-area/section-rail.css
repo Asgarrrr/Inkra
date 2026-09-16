@@ -1,3 +1,8 @@
+/* No `will-change` anywhere in this file, deliberately. The rail is mounted for
+   the whole life of a note with five or more headings, so a hint here is a
+   permanent layer, not a hint: one per heading on the ticks below. Nothing to
+   win either — these elements are 20x1px, and the ScrollFade mask above them
+   already forces the group through a compositing buffer. */
 .section-rail-ticks {
   transform-origin: right center;
   transform: translateY(-50%) translateX(0) scale(1);
@@ -5,7 +10,6 @@
   transition:
     transform 180ms ease,
     opacity 180ms ease;
-  will-change: transform, opacity;
 }
 
 .section-rail-ticks[data-open="true"] {
@@ -33,7 +37,6 @@
   transform-origin: right center;
   transform: scaleX(var(--tick-len));
   opacity: var(--tick-dim);
-  will-change: transform, opacity;
 }
 
 .section-rail-popover {
@@ -43,7 +46,6 @@
   transition:
     transform 180ms ease,
     opacity 180ms ease;
-  will-change: transform, opacity;
 }
 
 .section-rail-popover[data-state="closed"] {
