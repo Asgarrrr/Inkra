@@ -20,6 +20,7 @@ import {
   useToggleDirectory,
 } from "@/hooks/use-file-tree";
 import { useOpenFile } from "@/hooks/use-tabs";
+import { useRenamingPath, useSetRenamingPath } from "@/hooks/use-sidebar-tree";
 import { useBooleanSetting, useSetting } from "@/hooks/use-settings";
 import { useWorkspaceRoot } from "@/hooks/use-workspace";
 import * as tauri from "@/lib/tauri";
@@ -35,8 +36,6 @@ import type { DirEntry } from "@/types/fs";
 
 interface FileTreeProps {
   rootPath: string;
-  renamingPath: string | null;
-  onRenamingPathChange: (path: string | null) => void;
 }
 
 function getExtension(name: string): string {
@@ -45,7 +44,9 @@ function getExtension(name: string): string {
   return name.slice(dot);
 }
 
-export function FileTree({ rootPath, renamingPath, onRenamingPathChange }: FileTreeProps) {
+export function FileTree({ rootPath }: FileTreeProps) {
+  const renamingPath = useRenamingPath();
+  const onRenamingPathChange = useSetRenamingPath();
   const directoryCache = useDirectoryCache();
   const expandedDirs = useExpandedDirs();
   const toggleDirectory = useToggleDirectory();

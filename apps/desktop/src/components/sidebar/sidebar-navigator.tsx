@@ -9,6 +9,7 @@ import {
   useTogglePinnedFile,
 } from "@/hooks/use-file-tree";
 import { useOpenFile } from "@/hooks/use-tabs";
+import { useEverythingCollapsed, useSetEverythingCollapsed } from "@/hooks/use-sidebar-tree";
 import {
   getOpenFile,
   openFileInNewTab as openFileInNewTabAction,
@@ -30,25 +31,15 @@ import { showFileContextMenu } from "./file-context-menu";
 import { ShowMoreButton, SidebarSection } from "./sidebar-section";
 import type { DirEntry } from "@/types/fs";
 
-interface SidebarNavigatorProps {
-  renamingPath: string | null;
-  onRenamingPathChange: (path: string | null) => void;
-  everythingCollapsed: boolean;
-  onEverythingCollapsedChange: (collapsed: boolean) => void;
-}
-
 function getExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return "";
   return name.slice(dot);
 }
 
-export function SidebarNavigator({
-  renamingPath,
-  onRenamingPathChange,
-  everythingCollapsed,
-  onEverythingCollapsedChange,
-}: SidebarNavigatorProps) {
+export function SidebarNavigator() {
+  const everythingCollapsed = useEverythingCollapsed();
+  const onEverythingCollapsedChange = useSetEverythingCollapsed();
   const { root } = useWorkspace();
   const openFile = useOpenFile();
   const refreshDirectory = useRefreshDirectory();
@@ -241,11 +232,7 @@ export function SidebarNavigator({
         collapsed={everythingCollapsed}
         onCollapsedChange={onEverythingCollapsedChange}
       >
-        <FileTree
-          rootPath={root}
-          renamingPath={renamingPath}
-          onRenamingPathChange={onRenamingPathChange}
-        />
+        <FileTree rootPath={root} />
       </SidebarSection>
     </div>
   );
