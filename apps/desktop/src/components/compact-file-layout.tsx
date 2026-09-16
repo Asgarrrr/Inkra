@@ -436,9 +436,8 @@ export function CompactFileLayout() {
         </div>
       </div>
 
-      {/* No ActiveTabFooter: compact windows show no document stats. */}
       <div className="relative h-full min-w-0 bg-bg">
-        <EditorArea />
+        <EditorArea showFooter={false} />
       </div>
     </div>
   );

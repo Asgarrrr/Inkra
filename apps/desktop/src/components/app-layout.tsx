@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Sidebar } from "./sidebar";
 import { EditorArea } from "./editor-area";
-import { ActiveTabFooter } from "./editor-area/active-tab-footer";
 import { EditorTabs } from "./editor-area/editor-tabs";
 import { SidebarToggleButton } from "./sidebar/sidebar-toggle-button";
 import { CompactFileLayout } from "./compact-file-layout";
@@ -171,14 +170,7 @@ function WorkspaceLayout({ showWelcome }: { showWelcome: boolean }) {
           )}
 
           <div className="relative min-w-0 flex-1 bg-bg">
-            {showWelcome ? (
-              <WelcomeScreen />
-            ) : (
-              <>
-                <EditorArea />
-                <ActiveTabFooter />
-              </>
-            )}
+            {showWelcome ? <WelcomeScreen /> : <EditorArea />}
           </div>
         </div>
       </div>
