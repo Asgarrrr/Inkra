@@ -31,17 +31,20 @@ Gotchas:
 ## Launch state
 
 The e2e app uses its own data dir:
-`~/Library/Application Support/com.inkra.e2e`. Fresh dir → welcome
-screen (workspace opens need a native dialog you cannot drive). To land in a
-workspace, seed before launch:
+`~/Library/Application Support/com.inkra.e2e`. `wdio.conf.js` deletes it
+before every `specs/**` session, so each spec file boots to the welcome screen
+with default settings and no restored workspace. Do not seed
+`recent_workspaces.json` — the reset would throw it away.
 
-```sh
-printf '["/abs/path/to/workspace-dir"]' > \
-  "$HOME/Library/Application Support/com.inkra.e2e/recent_workspaces.json"
-```
+A spec opens its own workspace instead, through `e2e/helpers/workspace.js`:
+`createWorkspace(prefix, files)` for a temp workspace seeded host-side, then
+`openWorkspace(dir)`; or `openWorkspace(repoRoot)` when the spec needs a real
+tree. `openWorkspace` invokes `open_workspace` and reloads — the reload is what
+actually lands the app in the workspace, since startup restores the most recent
+one and `open_workspace` has just written it.
 
-Startup restores `recent_workspaces[0]` when it is a directory. Wipe the data
-dir between runs for deterministic settings.
+Probes under `e2e/probes/` are exempt from the reset and pin their own state
+(`node ./probes/keystroke-fixtures.js`).
 
 ## Drive
 
@@ -50,9 +53,14 @@ cd apps/desktop/e2e
 vp exec wdio run ./wdio.conf.js --spec ./specs/<your>.spec.js
 ```
 
-- Wait for `button[aria-label="Hide sidebar"]` to detect mount+restore. Do
-  NOT wait for `.animate-fade-in` — that wrapper no longer exists (the smoke
-  spec still references it and fails; known rot).
+- Wait for `#root > *` to detect the React mount, and for
+  `button[aria-label="Hide sidebar"]` to detect the workspace shell. There is
+  no `.animate-fade-in` wrapper.
+- Address a sidebar row by `[data-tree-path="<abs path>"]`, never by its
+  rendered label — the label follows the `appearance.sidebar-file-label`
+  setting. Scope to `[role="tree"][aria-label="File tree"]` when you mean the
+  Everything tree: the Recents list carries the same attribute and renders
+  above it.
 - Key chords through the driver are flaky on WKWebView; dispatch synthetic
   `KeyboardEvent`s via `browser.execute` instead (Cmd+P opens the palette;
   palette items are `[cmdk-item][data-value="<command-id>"]`).
@@ -62,5 +70,6 @@ vp exec wdio run ./wdio.conf.js --spec ./specs/<your>.spec.js
   `window.__TAURI_INTERNALS__.invoke(cmd, args)` inside
   `browser.executeAsync` (see `specs/smoke.spec.js`).
 - Screenshots: `browser.saveScreenshot(absPath)`.
-- `specs/font-picker.spec.js` self-skips when no workspace restored; it's a
-  working example of palette → settings → popover driving.
+- `specs/font-picker.spec.js` is a working example of palette → settings →
+  select driving; `specs/content-search.spec.js` of a spec that builds and
+  owns a whole temp workspace.

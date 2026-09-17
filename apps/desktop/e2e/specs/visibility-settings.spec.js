@@ -2,45 +2,14 @@ import { ok, strictEqual } from "node:assert/strict";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { invoke, openWorkspace, waitForMount } from "../helpers/workspace.js";
+
+// The repo is the workspace: this spec needs a README to open and enough files
+// for the sidebar's Recents section to render.
 const E2E_WORKSPACE = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-
-const VISIBILITY_KEYS = [
-  "statusbar.show-words",
-  "statusbar.show-characters",
-  "statusbar.show-paragraphs",
-  "appearance.sidebar-show-search",
-  "appearance.sidebar-show-recents",
-];
-
-async function invoke(cmd, args) {
-  const result = await browser.executeAsync(
-    (cmdName, cmdArgs, done) => {
-      window.__TAURI_INTERNALS__
-        .invoke(cmdName, cmdArgs)
-        .then((value) => done({ ok: true, value }))
-        .catch((error) =>
-          done({ ok: false, error: error && error.message ? error.message : String(error) }),
-        );
-    },
-    cmd,
-    args,
-  );
-  if (!result.ok) throw new Error(`${cmd} failed: ${result.error}`);
-  return result.value;
-}
 
 async function setSetting(key, value) {
   await invoke("set_setting", { key, value, scope: "global" });
-}
-
-async function resetVisibilitySettings() {
-  for (const key of VISIBILITY_KEYS) {
-    await invoke("reset_setting", { key, scope: "global" });
-  }
-}
-
-async function waitForMount() {
-  await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 15_000 });
 }
 
 async function openReadme() {
@@ -62,22 +31,8 @@ async function footerMetricLabels() {
 
 describe("status bar and sidebar visibility settings", function () {
   before(async function () {
-    const workspaceRestored = await $('[data-sidebar-surface][data-workspace-open="true"]')
-      .waitForExist({ timeout: 3_000 })
-      .catch(() => false);
-    if (!workspaceRestored) {
-      await invoke("open_workspace", { path: E2E_WORKSPACE });
-      await browser.refresh();
-    }
+    await openWorkspace(E2E_WORKSPACE);
     await waitForMount();
-    await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({ timeout: 15_000 });
-    await resetVisibilitySettings();
-    await browser.refresh();
-    await waitForMount();
-  });
-
-  after(async function () {
-    await resetVisibilitySettings().catch(() => {});
   });
 
   it("shows all three footer metrics by default", async function () {

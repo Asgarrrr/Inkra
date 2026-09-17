@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resetAppData } from "./helpers/app-data.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Built by `pnpm run build:app` (cargo tauri build --features e2e).
@@ -139,6 +141,25 @@ export const config = {
     // Give the intermediary a moment to bind to localhost:4444 before wdio
     // tries to create a session.
     await new Promise((r) => setTimeout(r, 1500));
+  },
+
+  /**
+   * Give every spec file a pristine app data dir.
+   *
+   * This hook runs in the worker before the framework and the session are
+   * initialised, and `tauri-webdriver` launches the app on session creation —
+   * so the app boots into an empty dir rather than inheriting whatever the
+   * previous spec file left behind.
+   *
+   * Scoped to `specs/**` deliberately. `probes/keystroke-fixtures.js` pins its
+   * own workspace and clears `sessions.json` as a required pre-step (the
+   * protocol is in `probes/keystroke-probe.spec.js`'s header); a blanket wipe
+   * would delete exactly what that run depends on.
+   */
+  beforeSession: function (_config, _capabilities, specs) {
+    if (specs.length > 0 && specs.every((spec) => spec.includes("/specs/"))) {
+      resetAppData();
+    }
   },
 
   onComplete: async function () {

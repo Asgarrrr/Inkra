@@ -13,10 +13,10 @@ import { ok, strictEqual } from "node:assert/strict";
 // The discard-port host keeps the fake key from reaching a real project: the
 // dispatcher's request fails fast and the event is dropped.
 //
-// Between runs, wipe both `telemetry.json` (`prompted` is one-shot by design)
-// and the `config` file in `~/Library/Application Support/com.inkra.e2e/`
-// — an earlier accepted run leaves `telemetry.enabled = true` there, which the
-// "off while the prompt is open" assertion below reads back.
+// The prompt is one-shot by design (`prompted` in `telemetry.json`), and an
+// accepted run leaves `telemetry.enabled = true` in `config` — which the "off
+// while the prompt is open" assertion below reads back. Both are cleared by
+// the per-spec data-dir reset in `wdio.conf.js`, so no manual wipe is needed.
 describe("telemetry consent dialog", function () {
   it("subscribes by email without switching usage data on", async function () {
     await $("#root > *").waitForExist({ timeout: 15_000 });

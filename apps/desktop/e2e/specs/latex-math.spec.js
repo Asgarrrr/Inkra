@@ -1,16 +1,18 @@
 import { ok } from "node:assert/strict";
+import { join } from "node:path";
+
+import {
+  createWorkspace,
+  openWorkspace,
+  removeWorkspace,
+  waitForMount,
+} from "../helpers/workspace.js";
 
 // LaTeX math rendering verification: seeds a markdown file containing inline
-// `$...$` and display `$$...$$` math into the restored workspace, opens it
+// `$...$` and display `$$...$$` math into this suite's own workspace, opens it
 // from the sidebar, and asserts the KaTeX fold widgets render and unfold to
 // raw source when the selection enters the math range
 // (see SPECs/latex-math-spec.md).
-//
-// Requires a restorable workspace: seed
-// `~/Library/Application Support/com.inkra.e2e/recent_workspaces.json`
-// with a real directory before launching. Without one the app lands on the
-// welcome screen and this suite self-skips, so it stays safe inside the
-// default `pnpm run test:e2e` sweep.
 describe("LaTeX math rendering", function () {
   const FILE_STEM = "latex-math-e2e";
   const DOC = [
@@ -24,69 +26,24 @@ describe("LaTeX math rendering", function () {
     "",
   ].join("\n");
 
-  let workspaceRestored = false;
+  let workspace = null;
   let filePath = null;
 
-  async function invoke(cmd, args) {
-    return browser.executeAsync(
-      (c, a, done) => {
-        window.__TAURI_INTERNALS__
-          .invoke(c, a)
-          .then((v) => done({ ok: true, value: v }))
-          .catch((e) => done({ ok: false, error: e && e.message ? e.message : String(e) }));
-      },
-      cmd,
-      args,
-    );
-  }
-
   before(async function () {
-    workspaceRestored = await $('[data-sidebar-surface][data-workspace-open="true"]')
-      .waitForExist({ timeout: 15_000 })
-      .catch(() => false);
-    if (!workspaceRestored) return;
-
-    const recents = await invoke("get_recent_workspaces", {});
-    const root = recents.ok && Array.isArray(recents.value) ? recents.value[0] : null;
-    ok(root, "no workspace root to seed the math document into");
-
-    filePath = `${root}/${FILE_STEM}.md`;
-    const wrote = await invoke("write_file", { path: filePath, content: DOC });
-    ok(wrote.ok, `failed to seed ${filePath}: ${wrote.error}`);
-
-    // `write_file` is the app's own write path, so the watcher suppresses it
-    // as a self-write and the tree is never told the file appeared — measured
-    // at 0 rows 12s after the write, and 2 after a reload. Reload rather than
-    // wait: this suite is about KaTeX rendering, and should not stand or fall
-    // on watcher propagation (tracked separately under the external-watcher
-    // miss work in TODOS.md).
-    //
-    // The e2e data dir also persists `appearance.sidebar-visible` between
-    // runs, and a sidebar collapsed by an earlier run hides the row this
-    // suite clicks. Settings are only picked up on reload, so both fixes ride
-    // the same refresh.
-    await invoke("set_setting", {
-      key: "appearance.sidebar-visible",
-      value: true,
-      scope: "global",
-    });
-    await browser.refresh();
-    await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 15_000 });
+    workspace = createWorkspace("inkra-e2e-latex-math-", { [`${FILE_STEM}.md`]: DOC });
+    filePath = join(workspace, `${FILE_STEM}.md`);
+    await openWorkspace(workspace);
+    await waitForMount();
   });
 
-  beforeEach(function () {
-    if (!workspaceRestored) this.skip();
-  });
-
-  after(async function () {
-    if (filePath) await invoke("delete_entry", { path: filePath });
+  after(function () {
+    removeWorkspace(workspace);
   });
 
   it("opens the seeded document from the sidebar", async function () {
     // Address the row by path, not by its rendered label: that label is the
     // document title under the default `sidebar-file-label` but the filename
-    // stem when the setting says so, and the e2e data dir carries whichever
-    // an earlier run left behind.
+    // stem when the setting says so.
     const row = await $(`[data-tree-path="${filePath}"]`);
     await row.waitForExist({ timeout: 15_000 });
     await row.click();

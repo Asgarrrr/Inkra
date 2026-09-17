@@ -6,6 +6,8 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
+import { invoke, openWorkspace } from "../helpers/workspace.js";
+
 const SHOTS = resolve(dirname(fileURLToPath(import.meta.url)), "../screenshots");
 const WORKSPACE = join(tmpdir(), "inkra-e2e-content-search");
 const QUERY = "throughput";
@@ -429,34 +431,17 @@ async function openFileRow(name) {
 describe("Content search palette", function () {
   before(async function () {
     seedWorkspace();
-    await $('button[aria-label="Hide sidebar"]').waitForExist({ timeout: 20_000 });
 
-    // Always open this suite's own workspace, never inherit whichever one
-    // startup restored. Testing `data-workspace-open` and skipping on "true"
-    // silently accepted someone else's workspace: the other specs seed
-    // `recent_workspaces.json` with the repo, so this suite would run against
-    // the repo and report "no palette row for big-images-tables.md" — 6
-    // passing, 7 failing — with nothing in the failure naming the real cause.
-    //
-    // The raw IPC is the Rust half only; the frontend store keeps no root.
-    // Startup restores the most recent workspace, which `open_workspace` has
-    // just written — so a reload is what actually opens it here.
-    await browser.executeAsync((path, done) => {
-      window.__TAURI_INTERNALS__
-        .invoke("open_workspace", { path })
-        .then(() => done(null))
-        .catch((e) => done(e && e.message ? e.message : String(e)));
-    }, WORKSPACE);
-    await browser.execute(() => window.location.reload());
-    await $('[data-sidebar-surface][data-workspace-open="true"]').waitForExist({
-      timeout: 20_000,
-    });
-    await browser.executeAsync((done) => {
-      window.__TAURI_INTERNALS__
-        .invoke("index_workspace")
-        .then(() => done(null))
-        .catch(() => done(null));
-    });
+    // This suite's own workspace, opened unconditionally — the reference the
+    // other specs now follow. Inheriting whichever workspace startup restored
+    // reported "no palette row for big-images-tables.md", with nothing in the
+    // failure naming the real cause.
+    await openWorkspace(WORKSPACE);
+
+    // The workspace bootstrap indexes in the background; forcing it here means
+    // the first query does not race it. Tolerated if it fails: a slow index
+    // makes the palette wait, not lie.
+    await invoke("index_workspace").catch(() => {});
 
     await activateAppWindow();
   });

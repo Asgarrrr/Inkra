@@ -41,22 +41,45 @@ are fast.
 
 ## What gets tested
 
-`specs/smoke.spec.js` contains two specs:
+`specs/smoke.spec.js` validates the pipeline itself — that the WKWebView loads
+and renders React (`#root > *`), and that `create_file` / `write_file` driven
+through `window.__TAURI_INTERNALS__.invoke` put bytes on disk. The rest of
+`specs/` is feature coverage: the sidebar, visibility settings, the font
+selects, content search, and the editor's rendered widgets (LaTeX, mermaid,
+tables, the section rail).
 
-1. **`mounts the React app`** — waits for the React top-level wrapper
-   (`<div class="animate-fade-in">`, present in both the welcome and editor
-   branches) to mount. Validates that the WKWebView loads and React renders.
+`specs/telemetry-consent.spec.js` self-skips unless the build has a PostHog key
+compiled in; its header says how to make one. It is the only spec that skips.
 
-2. **`creates a file and writes hello world via the Tauri IPC bridge`** —
-   creates a fresh temp directory on the host, then drives the real Rust IPC
-   commands (`create_file`, `write_file`) from inside the WKWebView via
-   `window.__TAURI_INTERNALS__.invoke`, and asserts the bytes hit disk.
-   Validates JS → IPC bridge → Rust command handler → filesystem end-to-end.
-   The temp dir is removed on teardown so no host state leaks between runs.
+## Test state
 
-The point is infrastructure validation, not feature coverage. Both specs are
-independent of any restored workspace because the e2e build uses an isolated
-bundle identifier (see below).
+Two rules keep a run measuring the product rather than the file order:
+
+1. **Every spec file starts from an empty app data dir.** `wdio.conf.js`'s
+   `beforeSession` hook deletes
+   `~/Library/Application Support/com.inkra.e2e` before the session — and so
+   before `tauri-webdriver` launches the app. That clears
+   `recent_workspaces.json` (which workspace startup restores), `sessions.json`
+   (which replays the previous run's tab **and its scroll position**),
+   `recent_files.json`, and `config` (persisted settings, including a collapsed
+   sidebar). The directory is the e2e build's own — see Build flavors below —
+   so deleting it never touches the real app's data.
+
+   The hook is scoped to `specs/**`. `probes/keystroke-fixtures.js` pins its own
+   workspace and clears `sessions.json` as a required pre-step, so a blanket
+   wipe would delete exactly what a probe run depends on.
+
+2. **Every spec opens the workspace it asserts against, unconditionally.**
+   Use `helpers/workspace.js`: `createWorkspace` for a temp workspace seeded
+   host-side, or `openWorkspace(path)` for the repo root. Opening one only
+   `if (!restored)` is what the first rule exists to make impossible — it
+   silently accepted whichever workspace the previous spec file left behind,
+   and the failure named a missing element rather than the wrong workspace.
+
+Seed fixture files on the host with `node:fs`, not through the `write_file`
+IPC: the watcher suppresses the app's own writes as self-writes, so a file
+seeded that way never reaches the tree. Writing before the workspace is opened
+means the startup index sees it.
 
 ## How it works
 
